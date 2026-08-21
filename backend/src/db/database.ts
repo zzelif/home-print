@@ -6,7 +6,8 @@ export class DatabaseManager {
   private db: Database.Database;
 
   constructor(dbPath?: string) {
-    const finalPath = dbPath || path.join(process.cwd(), 'homeprint.sqlite');
+    // Explicit fixed path in project root regardless of CWD
+    const finalPath = dbPath || path.resolve(__dirname, '../../../homeprint.sqlite');
     const dir = path.dirname(finalPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -26,10 +27,11 @@ export class DatabaseManager {
 
   private initSchema() {
     const candidatePaths = [
-      path.join(__dirname, 'schema.sql'),
-      path.join(__dirname, '..', 'src', 'db', 'schema.sql'),
-      path.join(process.cwd(), 'src', 'db', 'schema.sql'),
-      path.join(process.cwd(), 'backend', 'src', 'db', 'schema.sql'),
+      path.resolve(__dirname, 'schema.sql'),
+      path.resolve(__dirname, '../db/schema.sql'),
+      path.resolve(__dirname, '../../src/db/schema.sql'),
+      path.resolve(process.cwd(), 'src/db/schema.sql'),
+      path.resolve(process.cwd(), 'backend/src/db/schema.sql'),
     ];
 
     for (const schemaPath of candidatePaths) {

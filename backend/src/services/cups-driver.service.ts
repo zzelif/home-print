@@ -5,7 +5,7 @@ const execAsync = promisify(exec);
 
 export interface PrinterStatus {
   isOnline: boolean;
-  state: 'idle' | 'printing' | 'stopped' | 'unknown';
+  state: 'idle' | 'printing' | 'stopped' | 'disconnected';
   message: string;
   inkLevels?: {
     black: number;
@@ -27,36 +27,38 @@ export class CupsDriverService {
   private defaultPrinter = 'HP_Smart_Tank_670';
 
   /**
-   * Checks real-time printer status using lpstat and HPLIP
+   * Checks real-time printer status using lpstat.
+   * Truthful detection: reports disconnected if CUPS is not active or printer is missing.
    */
   async getPrinterStatus(): Promise<PrinterStatus> {
     try {
       const { stdout } = await execAsync(`lpstat -p ${this.defaultPrinter}`);
-      const isOnline = stdout.includes('is idle') || stdout.includes('is processing');
-      let state: PrinterStatus['state'] = 'unknown';
+      const isIdle = stdout.includes('is idle');
+      const isProcessing = stdout.includes('is processing') || stdout.includes('printing');
+      const isStopped = stdout.includes('is stopped') || stdout.includes('disabled');
 
-      if (stdout.includes('is idle')) state = 'idle';
-      else if (stdout.includes('is processing') || stdout.includes('printing')) state = 'printing';
-      else if (stdout.includes('is stopped') || stdout.includes('disabled')) state = 'stopped';
+      let state: PrinterStatus['state'] = 'disconnected';
+      if (isIdle) state = 'idle';
+      else if (isProcessing) state = 'printing';
+      else if (isStopped) state = 'stopped';
 
       return {
-        isOnline,
+        isOnline: isIdle || isProcessing,
         state,
         message: stdout.trim(),
       };
     } catch (error: any) {
-      // In development or when printer is offline
+      // In development or when printer is not physically connected
       return {
         isOnline: false,
-        state: 'stopped',
-        message: error.message || 'Printer unreachable',
+        state: 'disconnected',
+        message: 'Printer not detected / CUPS service not connected.',
       };
     }
   }
 
   /**
-   * Dispatches a print-ready PDF directly to the HP Smart Tank 670 via CUPS.
-   * Maps media types to HP driver attributes.
+   * Dispatches print job to CUPS with exact driver flags.
    */
   async dispatchJob(pdfPath: string, options: PrintOptions): Promise<{ cupsJobId: string }> {
     const printer = options.printerName || this.defaultPrinter;
@@ -64,7 +66,6 @@ export class CupsDriverService {
 
     let mediaArg = 'media=A4';
     if (options.paperSize === '4R') {
-      // Custom 4x6 inch borderless for HP Smart Tank 670
       mediaArg = 'media=Custom.4x6in.Borderless';
     }
 
@@ -72,21 +73,23 @@ export class CupsDriverService {
     let qualityArg = 'print-quality=4';
     if (options.paperType === 'GLOSSY_PHOTO') {
       mediaTypeArg = 'MediaType=PhotographicGlossy';
-      qualityArg = 'print-quality=5'; // Max photo resolution
+      qualityArg = 'print-quality=5';
     }
 
     const duplexArg = options.isDuplex ? '-o sides=two-sided-long-edge' : '-o sides=one-sided';
-
     const command = `lp -d ${printer} -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} "${pdfPath}"`;
 
     try {
       const { stdout } = await execAsync(command);
-      // stdout format: "request id is HP_Smart_Tank_670-123 (1 file(s))"
       const match = stdout.match(/request id is ([^\s]+)/);
       const cupsJobId = match ? match[1] : 'JOB_SUBMITTED';
-
       return { cupsJobId };
     } catch (error: any) {
+      // If running in development on Windows without CUPS
+      if (process.platform === 'win32') {
+        console.warn(`[DEV MOCK] CUPS not available on Windows. Simulated dispatch of ${pdfPath}`);
+        return { cupsJobId: `MOCK_JOB_${Date.now()}` };
+      }
       throw new Error(`Failed to dispatch print job to CUPS: ${error.message}`);
     }
   }
