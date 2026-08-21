@@ -100,7 +100,7 @@
               ]"
             >
               <span class="text-xs font-black uppercase text-blue-700">SET 1 (Standard)</span>
-              <span class="text-xs font-bold text-slate-800">4x 2x2 + 8x 1x1</span>
+              <span class="text-xs font-bold text-slate-800">4x 2x2" + 8x 1x1"</span>
               <span class="mt-1 text-[10px] text-slate-500 font-medium">12 Photos Total</span>
             </button>
 
@@ -114,7 +114,7 @@
               ]"
             >
               <span class="text-xs font-black uppercase text-blue-700">SET 2 (PRC / Visa)</span>
-              <span class="text-xs font-bold text-slate-800">6x 2x2 Inches</span>
+              <span class="text-xs font-bold text-slate-800">6x 2x2"</span>
               <span class="mt-1 text-[10px] text-slate-500 font-medium">6 Photos Total</span>
             </button>
 
@@ -128,7 +128,7 @@
               ]"
             >
               <span class="text-xs font-black uppercase text-blue-700">SET 3 (Combo)</span>
-              <span class="text-xs font-bold text-slate-800">6x 1.5x1.5 + 4x 1x1</span>
+              <span class="text-xs font-bold text-slate-800">6x 1.5x1.5" + 4x 1x1"</span>
               <span class="mt-1 text-[10px] text-slate-500 font-medium">10 Photos Total</span>
             </button>
 

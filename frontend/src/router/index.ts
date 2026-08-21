@@ -4,6 +4,7 @@ import LayoutStudioView from '../views/LayoutStudioView.vue';
 import DocumentPrintView from '../views/DocumentPrintView.vue';
 import CostingView from '../views/CostingView.vue';
 import InactiveUploadView from '../views/InactiveUploadView.vue';
+import SettingsView from '../views/SettingsView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -27,6 +28,11 @@ const router = createRouter({
       path: '/costing',
       name: 'costing',
       component: CostingView,
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: SettingsView,
     },
     {
       path: '/drop',

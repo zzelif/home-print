@@ -9,7 +9,6 @@ import path from 'path';
 import fs from 'fs';
 import { getDatabase } from './db/database';
 import { authService } from './services/auth.service';
-import { CupsDriverService } from './services/cups-driver.service';
 import { PpdDiscoveryService } from './services/ppd-discovery.service';
 import { websocketRoutes } from './routes/ws';
 import { publicDropRoutes } from './routes/public-drop.routes';
@@ -17,6 +16,7 @@ import { operatorAuthRoutes } from './routes/operator-auth.routes';
 import { operatorJobsRoutes } from './routes/operator-jobs.routes';
 import { operatorCostingRoutes } from './routes/operator-costing.routes';
 import { operatorPrintRoutes } from './routes/operator-print.routes';
+import { operatorPrintersRoutes } from './routes/operator-printers.routes';
 
 export async function buildServer() {
   const fastify = Fastify({
@@ -69,6 +69,7 @@ export async function buildServer() {
   await fastify.register(operatorJobsRoutes);
   await fastify.register(operatorCostingRoutes);
   await fastify.register(operatorPrintRoutes);
+  await fastify.register(operatorPrintersRoutes);
 
   // Serve static frontend build if it exists
   const publicDir = path.resolve(__dirname, 'public');

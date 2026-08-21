@@ -33,6 +33,13 @@ CREATE TABLE IF NOT EXISTS operation_settings (
     description TEXT
 );
 
+-- System Settings & Default Hardware Configurations
+CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Job Orders
 CREATE TABLE IF NOT EXISTS job_orders (
     id TEXT PRIMARY KEY,
@@ -86,3 +93,7 @@ INSERT OR IGNORE INTO products (id, name, category, paper_size, paper_type, defa
 ('prod_polaroid_4r', 'Polaroid Mini Prints (4R)', 'POLAROID', '4R', 'GLOSSY_PHOTO', 35.0),
 ('prod_doc_bw_a4', 'A4 Document Print (Black & White)', 'DOCUMENT', 'A4', 'PLAIN_PAPER', 5.0),
 ('prod_doc_color_a4', 'A4 Document Print (Full Color)', 'DOCUMENT', 'A4', 'PLAIN_PAPER', 15.0);
+
+INSERT OR IGNORE INTO system_settings (key, value) VALUES
+('default_printer_name', 'HP_Smart_Tank_670'),
+('default_printer_type', 'USB');
