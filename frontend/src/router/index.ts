@@ -5,6 +5,7 @@ import DocumentPrintView from '../views/DocumentPrintView.vue';
 import CostingView from '../views/CostingView.vue';
 import InactiveUploadView from '../views/InactiveUploadView.vue';
 import SettingsView from '../views/SettingsView.vue';
+import AnalyticsView from '../views/AnalyticsView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -33,6 +34,11 @@ const router = createRouter({
       path: '/settings',
       name: 'settings',
       component: SettingsView,
+    },
+    {
+      path: '/analytics',
+      name: 'analytics',
+      component: AnalyticsView,
     },
     {
       path: '/drop',

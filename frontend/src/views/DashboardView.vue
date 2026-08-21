@@ -1,6 +1,6 @@
 <template>
   <div class="flex min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
-    <!-- Left Navigation Sidebar (Matching PrintBoss Structure) -->
+    <!-- Left Navigation Sidebar -->
     <aside class="flex w-64 flex-col justify-between border-r border-slate-200 bg-white p-5 shadow-sm shrink-0">
       <div class="space-y-6">
         <!-- Brand Logo -->
@@ -69,6 +69,16 @@
             <span>Printer Discovery</span>
           </router-link>
 
+          <router-link
+            to="/analytics"
+            class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition"
+          >
+            <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span>Analytics & History</span>
+          </router-link>
+
           <a
             href="/drop"
             target="_blank"
@@ -82,16 +92,19 @@
         </nav>
       </div>
 
-      <!-- Footer Operator Card -->
-      <div class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-200">
+      <!-- Footer Operator Card with Real-Time Hardware Status -->
+      <router-link to="/settings" class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-200 block hover:bg-slate-100 transition">
         <div class="flex items-center gap-2">
-          <span :class="jobStore.printerStatus.isOnline ? 'bg-green-500' : 'bg-amber-500'" class="h-2.5 w-2.5 rounded-full shrink-0"></span>
+          <span
+            :class="jobStore.printerStatus.isOnline ? 'bg-green-500' : 'bg-amber-500'"
+            class="h-2.5 w-2.5 rounded-full shrink-0"
+          ></span>
           <span class="text-xs font-bold text-slate-700 truncate">{{ jobStore.printerStatus.message }}</span>
         </div>
-      </div>
+      </router-link>
     </aside>
 
-    <!-- Main Content Area: Queue Takes Center Stage -->
+    <!-- Main Content Area -->
     <main class="flex-1 p-6 space-y-6 overflow-y-auto">
       <!-- Top Action Bar -->
       <div class="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -133,7 +146,29 @@
         </div>
       </div>
 
-      <!-- Main Column Job Queue (Taking Up Most Space) -->
+      <!-- Operator Fast Ingestion Dropzone Banner -->
+      <div
+        @click="triggerOperatorUpload"
+        class="flex cursor-pointer items-center justify-between rounded-3xl border-2 border-dashed border-blue-400 bg-blue-50/60 p-5 transition hover:bg-blue-50"
+      >
+        <input ref="operatorFileInput" type="file" multiple class="hidden" @change="onOperatorFilesSelected" />
+        <div class="flex items-center gap-4">
+          <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 text-white">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <div>
+            <h4 class="text-sm font-extrabold text-blue-900">Operator Fast Ingestion Dropzone</h4>
+            <p class="text-xs text-blue-700 font-medium">Drag attachments from Facebook Messenger, Gmail, Bluetooth, or USB here</p>
+          </div>
+        </div>
+        <span class="rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm">
+          + Add to Queue
+        </span>
+      </div>
+
+      <!-- Main Column Job Queue -->
       <div class="space-y-4">
         <!-- Single Job Card in Column -->
         <div
@@ -149,7 +184,7 @@
             <div>
               <div class="flex items-center gap-2">
                 <h3 class="text-base font-extrabold text-slate-900">{{ job.customer_name || 'Walk-in Customer' }}</h3>
-                <span class="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 uppercase">
+                <span class="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 uppercase tracking-wider">
                   {{ job.source }}
                 </span>
               </div>
@@ -234,9 +269,11 @@ import CheckoutModal from '../components/CheckoutModal.vue';
 const jobStore = useJobStore();
 const isCheckoutOpen = ref(false);
 const selectedJob = ref<PrintJob | null>(null);
+const operatorFileInput = ref<HTMLInputElement | null>(null);
 
 onMounted(() => {
   jobStore.fetchJobs();
+  jobStore.fetchPrinterStatus();
   jobStore.initWebSocket();
 });
 
@@ -248,5 +285,28 @@ function openCheckout(job: PrintJob) {
 async function handleCheckoutComplete(payload: { jobId: string; cashTendered: number; changeGiven: number }) {
   await jobStore.completeCheckout(payload.jobId, payload.cashTendered, payload.changeGiven);
   isCheckoutOpen.value = false;
+}
+
+function triggerOperatorUpload() {
+  operatorFileInput.value?.click();
+}
+
+async function onOperatorFilesSelected(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    for (let i = 0; i < target.files.length; i++) {
+      const file = target.files[i];
+      const formData = new FormData();
+      formData.append('customerName', 'Counter Operator Job');
+      formData.append('service', file.type.startsWith('image/') ? 'RUSH_ID' : 'DOCUMENT');
+      formData.append('file', file);
+
+      await fetch('/api/public/upload', {
+        method: 'POST',
+        body: formData,
+      });
+    }
+    await jobStore.fetchJobs();
+  }
 }
 </script>

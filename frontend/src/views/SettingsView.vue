@@ -41,20 +41,21 @@
           <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Assigned System Default Printer</span>
           <h2 class="mt-1 text-2xl font-black text-white flex items-center gap-3">
             <span>{{ activeDefaultPrinter || 'HP Smart Tank 670 Series' }}</span>
-            <span class="rounded-full bg-green-500/20 px-3 py-0.5 text-xs font-bold text-green-400">ACTIVE</span>
+            <span class="rounded-full bg-green-500/20 px-3 py-0.5 text-xs font-bold text-green-400">ACTIVE TARGET</span>
           </h2>
-          <p class="mt-1 text-xs text-slate-400">All print jobs from Layout Studio and Document Station will automatically route here.</p>
+          <p class="mt-1 text-xs text-slate-400">All print jobs from Layout Studio and Document Station automatically route to this printer.</p>
         </div>
 
         <div class="flex items-center gap-3">
           <button
             @click="testPrintSwatch"
-            class="flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/20 transition"
+            :disabled="isPrintingSwatch"
+            class="flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition disabled:opacity-50"
           >
-            <svg class="h-4 w-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
-            <span>Print Calibration Swatch</span>
+            <span>{{ isPrintingSwatch ? 'Sending to Hardware...' : 'Print Calibration Swatch (Real Hardware)' }}</span>
           </button>
         </div>
       </div>
@@ -63,13 +64,13 @@
       <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
         <div class="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
-            <h3 class="text-base font-bold text-slate-900">Discovered Printers ({{ printers.length }})</h3>
-            <p class="text-xs text-slate-500 font-medium">Scanned USB buses, CUPS queues, and local Wi-Fi IPP subnet</p>
+            <h3 class="text-base font-bold text-slate-900">Discovered Hardware & Network Printers ({{ printers.length }})</h3>
+            <p class="text-xs text-slate-500 font-medium">Scanned USB buses, CUPS spool queues, and local Wi-Fi IPP subnet</p>
           </div>
           <span v-if="lastScannedAt" class="text-xs text-slate-400 font-medium">Last scanned: {{ new Date(lastScannedAt).toLocaleTimeString() }}</span>
         </div>
 
-        <!-- Printers Grid / Column -->
+        <!-- Printers List -->
         <div class="space-y-3">
           <div
             v-for="p in printers"
@@ -81,7 +82,6 @@
           >
             <!-- Left Info -->
             <div class="flex items-center gap-4">
-              <!-- Type Icon -->
               <div
                 :class="p.connectionType === 'USB' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'"
                 class="flex h-12 w-12 items-center justify-center rounded-2xl shrink-0"
@@ -112,15 +112,19 @@
                 </div>
 
                 <div class="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500 font-medium">
-                  <span v-if="p.ipAddress" class="font-mono text-slate-700">IP: {{ p.ipAddress }}</span>
-                  <span v-else class="text-slate-500">Port: USB Cable Connection</span>
+                  <span v-if="p.ipAddress" class="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
+                    IP: {{ p.ipAddress }}
+                  </span>
+                  <span v-else class="font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                    Port: Direct USB Cable (USB001)
+                  </span>
                   <span>•</span>
                   <span class="text-slate-500 truncate max-w-xs">{{ p.makeAndModel }}</span>
                 </div>
               </div>
             </div>
 
-            <!-- Right Status & Default Action -->
+            <!-- Right Status & Action -->
             <div class="flex items-center gap-3">
               <span
                 :class="{
@@ -179,6 +183,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useJobStore } from '../stores/jobStore';
 
 export interface DiscoveredPrinter {
   id: string;
@@ -191,9 +196,11 @@ export interface DiscoveredPrinter {
   isDefault: boolean;
 }
 
+const jobStore = useJobStore();
 const printers = ref<DiscoveredPrinter[]>([]);
 const activeDefaultPrinter = ref('HP Smart Tank 670 Series');
 const isScanning = ref(false);
+const isPrintingSwatch = ref(false);
 const lastScannedAt = ref<string | null>(null);
 const manualIp = ref('');
 
@@ -227,6 +234,7 @@ async function scanPrinters() {
       lastScannedAt.value = data.scannedAt;
       const def = printers.value.find((p) => p.isDefault);
       if (def) activeDefaultPrinter.value = def.name;
+      jobStore.fetchPrinterStatus();
     }
   } catch (err) {
     alert('Failed to scan for printers.');
@@ -248,10 +256,33 @@ async function assignDefault(printer: DiscoveredPrinter) {
       printers.value.forEach((p) => {
         p.isDefault = p.id === printer.id;
       });
+      await jobStore.fetchPrinterStatus();
       alert(`Default printer assigned to "${printer.name}"!`);
     }
   } catch (err) {
     alert('Failed to assign default printer.');
+  }
+}
+
+async function testPrintSwatch() {
+  isPrintingSwatch.value = true;
+  try {
+    const res = await fetch('/api/operator/printers/test-swatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ printerName: activeDefaultPrinter.value }),
+      credentials: 'include',
+    });
+    if (res.ok) {
+      const data = await res.json();
+      alert(data.message || `Calibration swatch dispatched to ${activeDefaultPrinter.value}!`);
+    } else {
+      alert('Failed to dispatch test swatch.');
+    }
+  } catch {
+    alert('Network error while dispatching swatch.');
+  } finally {
+    isPrintingSwatch.value = false;
   }
 }
 
@@ -268,9 +299,5 @@ function addManualIp() {
     isDefault: false,
   });
   manualIp.value = '';
-}
-
-function testPrintSwatch() {
-  alert('Calibration swatch sent to default printer: ' + activeDefaultPrinter.value);
 }
 </script>

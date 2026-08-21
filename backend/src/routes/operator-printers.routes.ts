@@ -1,8 +1,10 @@
 import { FastifyPluginAsync } from 'fastify';
 import { PrinterDiscoveryService } from '../services/printer-discovery.service';
+import { CupsDriverService } from '../services/cups-driver.service';
 
 export const operatorPrintersRoutes: FastifyPluginAsync = async (fastify) => {
   const discoveryService = new PrinterDiscoveryService();
+  const cupsService = new CupsDriverService();
 
   // 1-Click Active Scan for all USB and Wi-Fi printers
   fastify.get('/api/operator/printers/scan', async (_request, reply) => {
@@ -19,7 +21,6 @@ export const operatorPrintersRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // Alias POST for 1-click scan action
   fastify.post('/api/operator/printers/scan', async (_request, reply) => {
     try {
       const printers = await discoveryService.scanPrinters();
@@ -55,5 +56,31 @@ export const operatorPrintersRoutes: FastifyPluginAsync = async (fastify) => {
 
     const result = await discoveryService.setDefaultPrinter(printerName);
     return reply.send(result);
+  });
+
+  // 1-Click Hardware Calibration Swatch Print
+  fastify.post<{
+    Body?: { printerName?: string };
+  }>('/api/operator/printers/test-swatch', async (request, reply) => {
+    try {
+      const { printerName } = request.body || {};
+      const result = await cupsService.printCalibrationSwatch(printerName);
+      return reply.send(result);
+    } catch (err: any) {
+      return reply.status(500).send({ error: `Failed to print swatch: ${err.message}` });
+    }
+  });
+
+  // Query live print spool queue
+  fastify.get('/api/operator/print/spool', async (_request, reply) => {
+    try {
+      const spoolJobs = await cupsService.getActiveSpoolJobs();
+      return reply.send({
+        success: true,
+        spoolJobs,
+      });
+    } catch (err: any) {
+      return reply.status(500).send({ error: `Failed to query spool: ${err.message}` });
+    }
   });
 };

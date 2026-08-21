@@ -20,12 +20,33 @@
         :disabled="isPrinting || !documentFile"
         class="flex items-center gap-2 rounded-2xl bg-emerald-600 px-7 py-3 text-base font-bold text-white shadow-lg shadow-emerald-600/30 transition hover:bg-emerald-700 disabled:opacity-50"
       >
-        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg
+          :class="{ 'animate-spin': isPrinting }"
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
         </svg>
-        <span>{{ isPrinting ? 'Spooling...' : 'PRINT DOCUMENT' }}</span>
+        <span>{{ isPrinting ? 'Spooling to Printer...' : 'PRINT DOCUMENT' }}</span>
       </button>
     </header>
+
+    <!-- Live Spool Alert Banner (When Job Active) -->
+    <div v-if="spoolNotification" class="mb-6 rounded-3xl bg-blue-600 p-4 text-white shadow-lg shadow-blue-600/20 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg class="h-6 w-6 text-blue-200 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-200">Active Spool Status</span>
+          <p class="text-sm font-bold">{{ spoolNotification }}</p>
+        </div>
+      </div>
+      <button @click="spoolNotification = null" class="text-xs font-bold text-blue-200 hover:text-white">Dismiss</button>
+    </div>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
       <!-- Left Config Controls (6 cols) -->
@@ -129,7 +150,6 @@
         <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-4">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Fit & Page Layout</h3>
 
-          <!-- Fit Options -->
           <div class="grid grid-cols-3 gap-2">
             <button
               type="button"
@@ -168,7 +188,6 @@
             </button>
           </div>
 
-          <!-- Orientation & Duplex -->
           <div class="grid grid-cols-2 gap-3 pt-2">
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">Orientation</label>
@@ -190,7 +209,7 @@
         </div>
       </div>
 
-      <!-- Right Column: Document Details & Total Due (6 cols) -->
+      <!-- Right Column: Document Details & Visual Page Preview (6 cols) -->
       <div class="space-y-6 lg:col-span-6">
         <!-- Live Total Price Card -->
         <div class="rounded-3xl bg-slate-900 p-6 text-white shadow-xl flex flex-col justify-between">
@@ -201,49 +220,88 @@
             </span>
           </div>
 
-          <div class="my-6">
+          <div class="my-5">
             <div class="text-5xl font-black text-emerald-400">₱{{ calculatedTotal.toFixed(2) }}</div>
             <div class="mt-2 text-xs text-slate-300 font-semibold">
               {{ effectivePageCount }} page(s) × ₱{{ (colorMode === 'BW' ? 3.0 : 10.0).toFixed(2) }} × {{ copies }} copy(ies)
             </div>
           </div>
 
-          <!-- Breakdown Line Item -->
           <div class="border-t border-slate-800 pt-3 text-xs text-slate-400 space-y-1">
             <div class="flex justify-between">
               <span>Paper & Size:</span>
               <span class="font-bold text-white">{{ paperSize }} ({{ fitMode }})</span>
             </div>
             <div class="flex justify-between">
-              <span>Page Range Selected:</span>
-              <span class="font-bold text-white">{{ pageRangeInput }} ({{ effectivePageCount }} pages)</span>
+              <span>Target Hardware:</span>
+              <span class="font-bold text-emerald-400">{{ jobStore.printerStatus.activePrinterName || 'Assigned Default Printer' }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Document Preview / Info Card -->
-        <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-3">
-          <h3 class="text-sm font-bold text-slate-800">Document Information</h3>
-          <div v-if="documentFile" class="space-y-2 text-xs font-semibold text-slate-600">
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span>File Name:</span>
-              <span class="font-bold text-slate-900 truncate max-w-xs">{{ documentFile.name }}</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span>File Size:</span>
-              <span class="font-bold text-slate-900">{{ (documentFile.size / 1024).toFixed(1) }} KB</span>
-            </div>
-            <div class="flex justify-between py-1 border-b border-slate-100">
-              <span>Total Pages in Document:</span>
-              <span class="font-bold text-emerald-700">{{ totalDocPages }} pages</span>
-            </div>
-            <div class="flex justify-between py-1">
-              <span>Format:</span>
-              <span class="font-bold uppercase text-emerald-600">{{ documentFile.name.split('.').pop() }}</span>
+        <!-- Visual Live Page Preview Frame -->
+        <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="text-sm font-bold text-slate-800">Visual Page Inspection</h3>
+            <div v-if="documentFile" class="flex items-center gap-2 text-xs font-bold">
+              <button
+                @click="currentPageIndex = Math.max(1, currentPageIndex - 1)"
+                :disabled="currentPageIndex <= 1"
+                class="rounded-lg border border-slate-200 px-2 py-1 hover:bg-slate-50 disabled:opacity-30"
+              >
+                ‹ Prev
+              </button>
+              <span class="text-slate-600">Page {{ currentPageIndex }} of {{ totalDocPages }}</span>
+              <button
+                @click="currentPageIndex = Math.min(totalDocPages, currentPageIndex + 1)"
+                :disabled="currentPageIndex >= totalDocPages"
+                class="rounded-lg border border-slate-200 px-2 py-1 hover:bg-slate-50 disabled:opacity-30"
+              >
+                Next ›
+              </button>
             </div>
           </div>
-          <div v-else class="py-8 text-center text-xs text-slate-400 font-medium">
-            No document loaded. Upload a PDF or DOCX file to configure print parameters.
+
+          <!-- Document Preview Canvas / Sheet View -->
+          <div class="flex items-center justify-center p-4 bg-slate-50 rounded-2xl">
+            <div
+              :class="[
+                orientation === 'LANDSCAPE' ? 'w-80 h-56' : 'w-56 h-80',
+                'relative bg-white shadow-xl border border-slate-300 rounded-sm p-4 flex flex-col justify-between overflow-hidden transition-all'
+              ]"
+            >
+              <!-- Simulated Document Content -->
+              <div v-if="documentFile" class="space-y-2">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-1">
+                  <span class="text-[10px] font-bold text-slate-800 truncate">{{ documentFile.name }}</span>
+                  <span class="text-[9px] font-bold text-slate-400">P.{{ currentPageIndex }}</span>
+                </div>
+                <div class="space-y-1 pt-1">
+                  <div class="h-2 bg-slate-200 rounded w-3/4"></div>
+                  <div class="h-1.5 bg-slate-200 rounded w-full"></div>
+                  <div class="h-1.5 bg-slate-200 rounded w-5/6"></div>
+                  <div class="h-1.5 bg-slate-200 rounded w-full"></div>
+                  <div class="h-1.5 bg-slate-200 rounded w-2/3"></div>
+                </div>
+                <div class="space-y-1 pt-3">
+                  <div class="h-1.5 bg-slate-200 rounded w-full"></div>
+                  <div class="h-1.5 bg-slate-200 rounded w-4/5"></div>
+                  <div class="h-1.5 bg-slate-200 rounded w-full"></div>
+                </div>
+              </div>
+              <!-- Placeholder when empty -->
+              <div v-else class="h-full flex flex-col items-center justify-center text-center p-4">
+                <svg class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span class="mt-2 text-xs font-semibold text-slate-400">Upload document to preview layout</span>
+              </div>
+
+              <!-- Footer Stamp -->
+              <div v-if="documentFile" class="text-[8px] font-mono text-slate-400 text-right">
+                {{ fitMode }} • {{ colorMode }}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -252,8 +310,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useJobStore } from '../stores/jobStore';
 
+const jobStore = useJobStore();
 const documentFile = ref<File | null>(null);
 const docInput = ref<HTMLInputElement | null>(null);
 const colorMode = ref<'BW' | 'COLOR'>('BW');
@@ -264,9 +324,14 @@ const fitMode = ref<'FIT_PRINTABLE' | 'FILL_PAGE' | 'SCALE_100'>('FIT_PRINTABLE'
 const orientation = ref<'AUTO' | 'PORTRAIT' | 'LANDSCAPE'>('AUTO');
 const duplexMode = ref<'ONE_SIDED' | 'TWO_SIDED_LONG' | 'TWO_SIDED_SHORT'>('ONE_SIDED');
 const totalDocPages = ref(3);
+const currentPageIndex = ref(1);
 const isPrinting = ref(false);
+const spoolNotification = ref<string | null>(null);
 
-// Accurate page range parser
+onMounted(() => {
+  jobStore.fetchPrinterStatus();
+});
+
 const effectivePageCount = computed(() => {
   const range = pageRangeInput.value.trim().toLowerCase();
   if (!range || range === 'all') {
@@ -306,7 +371,8 @@ function onDocSelected(event: Event) {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
     documentFile.value = target.files[0];
-    totalDocPages.value = 3; // Estimated default from file
+    totalDocPages.value = 3;
+    currentPageIndex.value = 1;
     pageRangeInput.value = 'all';
   }
 }
@@ -315,7 +381,29 @@ async function dispatchDocumentPrint() {
   if (!documentFile.value) return;
   isPrinting.value = true;
   try {
-    alert(`Document dispatched: ${effectivePageCount.value} page(s) (${colorMode.value}, ${duplexMode.value}) for ₱${calculatedTotal.value.toFixed(2)}.`);
+    const res = await fetch('/api/operator/print/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: `doc_${Date.now()}`,
+        state: {
+          product: { paperSize: paperSize.value, isDuplex: duplexMode.value !== 'ONE_SIDED' },
+          inputFiles: [{ filePath: documentFile.value.name, mimeType: 'application/pdf' }],
+          options: {
+            colorMode: colorMode.value,
+            pageRange: pageRangeInput.value,
+            copies: copies.value,
+            fitMode: fitMode.value,
+            orientation: orientation.value,
+          },
+        },
+      }),
+      credentials: 'include',
+    });
+
+    if (res.ok) {
+      spoolNotification.value = `Document "${documentFile.value.name}" (${effectivePageCount.value} pages, ${colorMode.value}) dispatched to printer!`;
+    }
   } finally {
     isPrinting.value = false;
   }
