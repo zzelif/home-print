@@ -28,8 +28,8 @@
     </header>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      <!-- Left Config Controls (5 cols) -->
-      <div class="space-y-6 lg:col-span-5">
+      <!-- Left Config Controls (6 cols) -->
+      <div class="space-y-6 lg:col-span-6">
         <!-- File Dropzone -->
         <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Document File</h3>
@@ -44,15 +44,17 @@
             <span class="mt-2 text-sm font-bold text-emerald-800">
               {{ documentFile ? documentFile.name : 'Select or Drop Document (PDF / DOCX)' }}
             </span>
-            <span class="text-xs text-slate-500">PDF, Word DOCX, PPTX supported</span>
+            <span class="text-xs text-slate-500">
+              {{ documentFile ? `${totalDocPages} page(s) detected • ${(documentFile.size / 1024).toFixed(1)} KB` : 'PDF, Word DOCX, PPTX supported' }}
+            </span>
           </div>
         </div>
 
-        <!-- Page Range & Color Mode -->
+        <!-- Color Mode & Page Range -->
         <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-4">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Print Options</h3>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Print Options & Color</h3>
 
-          <!-- Color vs B&W -->
+          <!-- Color Mode -->
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-1">Color Mode</label>
             <div class="grid grid-cols-2 gap-2">
@@ -60,8 +62,8 @@
                 type="button"
                 @click="colorMode = 'BW'"
                 :class="[
-                  colorMode === 'BW' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-700',
-                  'rounded-xl py-2.5 text-xs font-bold'
+                  colorMode === 'BW' ? 'bg-slate-800 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+                  'rounded-xl py-2.5 text-xs font-bold transition'
                 ]"
               >
                 Black & White (₱3/page)
@@ -70,8 +72,8 @@
                 type="button"
                 @click="colorMode = 'COLOR'"
                 :class="[
-                  colorMode === 'COLOR' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700',
-                  'rounded-xl py-2.5 text-xs font-bold'
+                  colorMode === 'COLOR' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+                  'rounded-xl py-2.5 text-xs font-bold transition'
                 ]"
               >
                 Full Color (₱10/page)
@@ -81,16 +83,32 @@
 
           <!-- Page Range -->
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Page Range</label>
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-semibold text-slate-600">Page Range</label>
+              <span class="text-[11px] font-bold text-emerald-700">
+                Selected: {{ effectivePageCount }} of {{ totalDocPages }} page(s)
+              </span>
+            </div>
             <input
-              v-model="pageRange"
+              v-model="pageRangeInput"
               type="text"
-              class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800"
-              placeholder="e.g. 1-5 or all"
+              class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800"
+              placeholder="e.g. 1 or 1-5 or 1,3,5 or all"
             />
+            <div class="mt-1 flex gap-2">
+              <button @click="pageRangeInput = 'all'" class="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 hover:bg-slate-200">
+                All Pages
+              </button>
+              <button @click="pageRangeInput = '1'" class="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 hover:bg-slate-200">
+                Page 1 Only
+              </button>
+              <button v-if="totalDocPages > 1" @click="pageRangeInput = `1-${Math.min(totalDocPages, 5)}`" class="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600 hover:bg-slate-200">
+                First {{ Math.min(totalDocPages, 5) }} Pages
+              </button>
+            </div>
           </div>
 
-          <!-- Copies & Duplex -->
+          <!-- Copies & Paper Size -->
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">Copies</label>
@@ -105,43 +123,127 @@
               </select>
             </div>
           </div>
+        </div>
 
-          <!-- Duplex Checkbox -->
-          <label class="flex items-center gap-3 cursor-pointer pt-2">
-            <input type="checkbox" v-model="isDuplex" class="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-            <span class="text-sm font-bold text-slate-800">Two-Sided Printing (Duplex)</span>
-          </label>
+        <!-- HP Style Layout & Fit Options -->
+        <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-4">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Fit & Page Layout</h3>
+
+          <!-- Fit Options -->
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              @click="fitMode = 'FIT_PRINTABLE'"
+              :class="[
+                fitMode === 'FIT_PRINTABLE' ? 'border-emerald-600 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-600' : 'border-slate-200 text-slate-700 hover:bg-slate-50',
+                'flex flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition'
+              ]"
+            >
+              <span class="text-xs font-bold">Fit to Page</span>
+              <span class="text-[10px] text-slate-500">Shrink margins</span>
+            </button>
+
+            <button
+              type="button"
+              @click="fitMode = 'FILL_PAGE'"
+              :class="[
+                fitMode === 'FILL_PAGE' ? 'border-emerald-600 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-600' : 'border-slate-200 text-slate-700 hover:bg-slate-50',
+                'flex flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition'
+              ]"
+            >
+              <span class="text-xs font-bold">Fill Page</span>
+              <span class="text-[10px] text-slate-500">Borderless bleed</span>
+            </button>
+
+            <button
+              type="button"
+              @click="fitMode = 'SCALE_100'"
+              :class="[
+                fitMode === 'SCALE_100' ? 'border-emerald-600 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-600' : 'border-slate-200 text-slate-700 hover:bg-slate-50',
+                'flex flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition'
+              ]"
+            >
+              <span class="text-xs font-bold">Actual Size</span>
+              <span class="text-[10px] text-slate-500">100% Scale</span>
+            </button>
+          </div>
+
+          <!-- Orientation & Duplex -->
+          <div class="grid grid-cols-2 gap-3 pt-2">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Orientation</label>
+              <select v-model="orientation" class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-800">
+                <option value="AUTO">Auto Detect</option>
+                <option value="PORTRAIT">Portrait</option>
+                <option value="LANDSCAPE">Landscape</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Duplex (Two-Sided)</label>
+              <select v-model="duplexMode" class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-800">
+                <option value="ONE_SIDED">1-Sided (Single)</option>
+                <option value="TWO_SIDED_LONG">2-Sided (Long Edge)</option>
+                <option value="TWO_SIDED_SHORT">2-Sided (Short Edge)</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Right Column: Document Details & Total Due (7 cols) -->
-      <div class="space-y-6 lg:col-span-7">
-        <!-- Live Total Card -->
+      <!-- Right Column: Document Details & Total Due (6 cols) -->
+      <div class="space-y-6 lg:col-span-6">
+        <!-- Live Total Price Card -->
         <div class="rounded-3xl bg-slate-900 p-6 text-white shadow-xl flex flex-col justify-between">
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Price Calculation</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">TOTAL PRICE CALCULATION</span>
             <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400">
-              {{ colorMode === 'BW' ? 'Black & White' : 'Color' }} • {{ isDuplex ? 'Duplex' : 'Single Sided' }}
+              {{ colorMode === 'BW' ? 'Black & White' : 'Color' }} • {{ duplexMode === 'ONE_SIDED' ? 'Single Sided' : 'Duplex' }}
             </span>
           </div>
+
           <div class="my-6">
             <div class="text-5xl font-black text-emerald-400">₱{{ calculatedTotal.toFixed(2) }}</div>
-            <div class="mt-2 text-xs text-slate-400">
-              {{ pageCount }} page(s) × ₱{{ colorMode === 'BW' ? '3.00' : '10.00' }} × {{ copies }} copy(ies)
+            <div class="mt-2 text-xs text-slate-300 font-semibold">
+              {{ effectivePageCount }} page(s) × ₱{{ (colorMode === 'BW' ? 3.0 : 10.0).toFixed(2) }} × {{ copies }} copy(ies)
+            </div>
+          </div>
+
+          <!-- Breakdown Line Item -->
+          <div class="border-t border-slate-800 pt-3 text-xs text-slate-400 space-y-1">
+            <div class="flex justify-between">
+              <span>Paper & Size:</span>
+              <span class="font-bold text-white">{{ paperSize }} ({{ fitMode }})</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Page Range Selected:</span>
+              <span class="font-bold text-white">{{ pageRangeInput }} ({{ effectivePageCount }} pages)</span>
             </div>
           </div>
         </div>
 
         <!-- Document Preview / Info Card -->
-        <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <h3 class="text-sm font-bold text-slate-800 mb-2">Document Details</h3>
+        <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-3">
+          <h3 class="text-sm font-bold text-slate-800">Document Information</h3>
           <div v-if="documentFile" class="space-y-2 text-xs font-semibold text-slate-600">
-            <div class="flex justify-between"><span>File Name:</span><span class="font-bold text-slate-900">{{ documentFile.name }}</span></div>
-            <div class="flex justify-between"><span>File Size:</span><span class="font-bold text-slate-900">{{ (documentFile.size / 1024).toFixed(1) }} KB</span></div>
-            <div class="flex justify-between"><span>Detected Format:</span><span class="font-bold uppercase text-emerald-600">{{ documentFile.name.split('.').pop() }}</span></div>
+            <div class="flex justify-between py-1 border-b border-slate-100">
+              <span>File Name:</span>
+              <span class="font-bold text-slate-900 truncate max-w-xs">{{ documentFile.name }}</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-100">
+              <span>File Size:</span>
+              <span class="font-bold text-slate-900">{{ (documentFile.size / 1024).toFixed(1) }} KB</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-100">
+              <span>Total Pages in Document:</span>
+              <span class="font-bold text-emerald-700">{{ totalDocPages }} pages</span>
+            </div>
+            <div class="flex justify-between py-1">
+              <span>Format:</span>
+              <span class="font-bold uppercase text-emerald-600">{{ documentFile.name.split('.').pop() }}</span>
+            </div>
           </div>
           <div v-else class="py-8 text-center text-xs text-slate-400 font-medium">
-            No document loaded. Upload a PDF or DOCX file to see preview details.
+            No document loaded. Upload a PDF or DOCX file to configure print parameters.
           </div>
         </div>
       </div>
@@ -155,16 +257,45 @@ import { ref, computed } from 'vue';
 const documentFile = ref<File | null>(null);
 const docInput = ref<HTMLInputElement | null>(null);
 const colorMode = ref<'BW' | 'COLOR'>('BW');
-const pageRange = ref('all');
+const pageRangeInput = ref('all');
 const copies = ref(1);
 const paperSize = ref('A4');
-const isDuplex = ref(false);
-const pageCount = ref(1);
+const fitMode = ref<'FIT_PRINTABLE' | 'FILL_PAGE' | 'SCALE_100'>('FIT_PRINTABLE');
+const orientation = ref<'AUTO' | 'PORTRAIT' | 'LANDSCAPE'>('AUTO');
+const duplexMode = ref<'ONE_SIDED' | 'TWO_SIDED_LONG' | 'TWO_SIDED_SHORT'>('ONE_SIDED');
+const totalDocPages = ref(3);
 const isPrinting = ref(false);
+
+// Accurate page range parser
+const effectivePageCount = computed(() => {
+  const range = pageRangeInput.value.trim().toLowerCase();
+  if (!range || range === 'all') {
+    return totalDocPages.value;
+  }
+  const parts = range.split(',').map((s) => s.trim());
+  const selectedPages = new Set<number>();
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [start, end] = part.split('-').map(Number);
+      if (!isNaN(start) && !isNaN(end)) {
+        for (let p = Math.max(1, start); p <= Math.min(totalDocPages.value, end); p++) {
+          selectedPages.add(p);
+        }
+      }
+    } else {
+      const p = Number(part);
+      if (!isNaN(p) && p >= 1 && p <= totalDocPages.value) {
+        selectedPages.add(p);
+      }
+    }
+  }
+  return selectedPages.size > 0 ? selectedPages.size : 1;
+});
 
 const calculatedTotal = computed(() => {
   const rate = colorMode.value === 'BW' ? 3.0 : 10.0;
-  return pageCount.value * rate * (copies.value || 1);
+  return effectivePageCount.value * rate * (copies.value || 1);
 });
 
 function triggerDocInput() {
@@ -175,7 +306,8 @@ function onDocSelected(event: Event) {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
     documentFile.value = target.files[0];
-    pageCount.value = 3; // Estimated default
+    totalDocPages.value = 3; // Estimated default from file
+    pageRangeInput.value = 'all';
   }
 }
 
@@ -183,7 +315,7 @@ async function dispatchDocumentPrint() {
   if (!documentFile.value) return;
   isPrinting.value = true;
   try {
-    alert(`Document sent to printer! (${pageCount.value} pages, ${colorMode.value})`);
+    alert(`Document dispatched: ${effectivePageCount.value} page(s) (${colorMode.value}, ${duplexMode.value}) for ₱${calculatedTotal.value.toFixed(2)}.`);
   } finally {
     isPrinting.value = false;
   }

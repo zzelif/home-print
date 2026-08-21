@@ -30,50 +30,84 @@ export const useJobStore = defineStore('jobStore', () => {
   const jobs = ref<PrintJob[]>([]);
   const activeJob = ref<PrintJob | null>(null);
   const isConnected = ref(false);
-  const printerStatus = ref({ isOnline: true, state: 'idle', message: 'Printer Ready' });
+  const printerStatus = ref({
+    isOnline: false,
+    state: 'disconnected',
+    message: 'Printer not connected / Offline',
+  });
 
   let ws: WebSocket | null = null;
+  let pollingInterval: any = null;
 
   async function fetchJobs() {
     try {
-      const res = await fetch('/api/operator/jobs');
+      const res = await fetch('/api/operator/jobs', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        jobs.value = data.jobs;
+        jobs.value = data.jobs || [];
       }
     } catch (err) {
       console.error('Failed to fetch jobs:', err);
     }
   }
 
+  async function fetchPrinterStatus() {
+    try {
+      const res = await fetch('/api/operator/print/status', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status) {
+          printerStatus.value = data.status;
+        }
+      }
+    } catch {
+      printerStatus.value = {
+        isOnline: false,
+        state: 'disconnected',
+        message: 'Printer Service Unreachable',
+      };
+    }
+  }
+
   function initWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/operator`;
-    ws = new WebSocket(wsUrl);
+    try {
+      ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => {
-      isConnected.value = true;
-      ws?.send(JSON.stringify({ type: 'SYNC_REQUEST' }));
-    };
+      ws.onopen = () => {
+        isConnected.value = true;
+        ws?.send(JSON.stringify({ type: 'SYNC_REQUEST' }));
+      };
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'NEW_JOB_INGESTED' || data.type === 'JOB_STATE_CHANGED') {
-          fetchJobs();
-        } else if (data.type === 'CUPS_STATUS_UPDATE') {
-          printerStatus.value = data.payload;
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'NEW_JOB_INGESTED' || data.type === 'JOB_STATE_CHANGED') {
+            fetchJobs();
+          } else if (data.type === 'CUPS_STATUS_UPDATE') {
+            printerStatus.value = data.payload;
+          }
+        } catch (e) {
+          // Ignore malformed WS payloads
         }
-      } catch (e) {
-        // Ignore malformed WS payloads
-      }
-    };
+      };
 
-    ws.onclose = () => {
+      ws.onclose = () => {
+        isConnected.value = false;
+        setTimeout(initWebSocket, 3000);
+      };
+    } catch (e) {
       isConnected.value = false;
-      // Reconnect after 3s
-      setTimeout(initWebSocket, 3000);
-    };
+    }
+
+    // Polling fallback every 3s
+    if (!pollingInterval) {
+      pollingInterval = setInterval(() => {
+        fetchJobs();
+        fetchPrinterStatus();
+      }, 3000);
+    }
   }
 
   async function updateJobStatus(jobId: string, status: PrintJob['status']) {
@@ -81,6 +115,7 @@ export const useJobStore = defineStore('jobStore', () => {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
+      credentials: 'include',
     });
     await fetchJobs();
   }
@@ -90,6 +125,7 @@ export const useJobStore = defineStore('jobStore', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cashTendered, changeGiven, paymentMethod: 'CASH' }),
+      credentials: 'include',
     });
     if (res.ok) {
       await fetchJobs();
@@ -102,6 +138,7 @@ export const useJobStore = defineStore('jobStore', () => {
     isConnected,
     printerStatus,
     fetchJobs,
+    fetchPrinterStatus,
     initWebSocket,
     updateJobStatus,
     completeCheckout,

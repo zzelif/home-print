@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-slate-100 p-4 md:p-6">
-    <!-- Top Header -->
+    <!-- Header with Tab Switcher -->
     <header class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
       <div class="flex items-center gap-3">
         <router-link to="/" class="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50">
@@ -9,253 +9,225 @@
           </svg>
         </router-link>
         <div>
-          <h1 class="text-xl font-bold text-slate-900">Advanced Product Costing & Pricing Engine</h1>
-          <p class="text-xs text-slate-500 font-medium">Itemized Materials, Operational Overhead, Labor, & Margin Matrices</p>
+          <h1 class="text-xl font-bold text-slate-900">Costing & Margin Engine</h1>
+          <p class="text-xs text-slate-500 font-medium">Unit Economics from Purchase Batches & Product Margin Calculator</p>
         </div>
       </div>
 
-      <!-- Product Selector & Size Header -->
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 ring-1 ring-slate-200">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">PRODUCT:</span>
-          <input
-            v-model="productName"
-            type="text"
-            class="rounded-lg border-0 bg-transparent text-sm font-bold text-slate-900 focus:outline-none focus:ring-0"
-            placeholder="Product Name"
-          />
-        </div>
-        <div class="flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 ring-1 ring-slate-200">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">SIZE:</span>
-          <select v-model="productSize" class="rounded-lg border-0 bg-transparent text-sm font-bold text-slate-900 focus:outline-none focus:ring-0">
-            <option value="4R">4R (4x6")</option>
-            <option value="A4">A4 (8.3x11.7")</option>
-            <option value="Letter">Letter (8.5x11")</option>
-          </select>
-        </div>
+      <!-- Tab Buttons -->
+      <div class="flex items-center gap-2 rounded-2xl bg-slate-100 p-1">
+        <button
+          type="button"
+          @click="activeTab = 'PRODUCT_MARGINS'"
+          :class="[
+            activeTab === 'PRODUCT_MARGINS' ? 'bg-white text-blue-700 shadow-sm font-black' : 'text-slate-600 font-bold hover:text-slate-900',
+            'rounded-xl px-4 py-2 text-xs transition'
+          ]"
+        >
+          Product Margins & Pricing
+        </button>
+
+        <button
+          type="button"
+          @click="activeTab = 'UNIT_ECONOMICS'"
+          :class="[
+            activeTab === 'UNIT_ECONOMICS' ? 'bg-white text-blue-700 shadow-sm font-black' : 'text-slate-600 font-bold hover:text-slate-900',
+            'rounded-xl px-4 py-2 text-xs transition'
+          ]"
+        >
+          Material Batches & Unit Economics
+        </button>
       </div>
     </header>
 
-    <!-- 3-Column Top Grid (Material, Operation, Labor) -->
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <!-- 1. MATERIAL COST CARD (Blue Header) -->
-      <div class="rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between bg-blue-600 px-5 py-3.5 text-white">
-            <div class="flex items-center gap-2 font-bold text-sm">
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-              <span>MATERIAL COST</span>
-            </div>
-            <button @click="addMaterial" class="rounded-lg bg-blue-500/40 px-2 py-1 text-xs font-bold hover:bg-blue-500/60">
-              + Add Material
-            </button>
-          </div>
-
-          <!-- Material List Table -->
-          <div class="p-4 space-y-2.5">
-            <div class="grid grid-cols-12 gap-2 text-[11px] font-bold uppercase text-slate-400 px-1">
-              <span class="col-span-6">Material Name</span>
-              <span class="col-span-2 text-center">Qty</span>
-              <span class="col-span-3 text-right">Price (₱)</span>
-              <span class="col-span-1"></span>
-            </div>
-            <div v-for="(item, idx) in materials" :key="idx" class="grid grid-cols-12 items-center gap-2">
-              <input v-model="item.name" type="text" class="col-span-6 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-800" />
-              <input v-model.number="item.qty" type="number" min="1" class="col-span-2 rounded-xl border border-slate-200 px-1.5 py-1.5 text-center text-xs font-semibold text-slate-800" />
-              <input v-model.number="item.unitPrice" type="number" step="0.25" min="0" class="col-span-3 rounded-xl border border-slate-200 px-2 py-1.5 text-right text-xs font-bold text-slate-800" />
-              <button @click="removeMaterial(idx)" class="col-span-1 text-slate-400 hover:text-red-500">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
+    <!-- TAB 1: PRODUCT MARGINS & PRICING -->
+    <div v-if="activeTab === 'PRODUCT_MARGINS'" class="space-y-6">
+      <!-- Product Selector Banner -->
+      <div class="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="flex items-center gap-3">
+          <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Select Product:</label>
+          <select v-model="selectedProduct" class="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-900 focus:ring-blue-500">
+            <option value="RUSH_ID_4R">Rush ID Photo Package (Set 1 4R)</option>
+            <option value="PASSPORT_4R">Passport Package (6x 35x45mm)</option>
+            <option value="DOC_BW_A4">Document Print (A4 B&W)</option>
+            <option value="DOC_COLOR_A4">Document Print (A4 Full Color)</option>
+            <option value="PHOTO_4R_FULL">4R Full Glossy Photo</option>
+          </select>
         </div>
 
-        <!-- Material Footer -->
-        <div class="border-t border-slate-100 bg-slate-50 px-5 py-3 flex items-center justify-between">
-          <span class="text-xs font-bold uppercase text-slate-500">TOTAL MATERIAL</span>
-          <span class="text-base font-black text-blue-600">₱{{ totalMaterialCost.toFixed(2) }}</span>
+        <div class="flex items-center gap-4 text-xs font-semibold text-slate-600">
+          <span>Derived Material Unit Cost: <strong class="text-blue-600">₱{{ currentProductMaterialCost.toFixed(2) }}</strong></span>
+          <span>•</span>
+          <span>Derived Operational Overhead: <strong class="text-orange-600">₱{{ currentProductOpCost.toFixed(2) }}</strong></span>
         </div>
       </div>
 
-      <!-- 2. OPERATION COST CARD (Orange Header) -->
-      <div class="rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between bg-orange-600 px-5 py-3.5 text-white">
-            <div class="flex items-center gap-2 font-bold text-sm">
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span>OPERATION COST</span>
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <!-- Left: Labor Input & Base Cost Breakdown (5 cols) -->
+        <div class="space-y-6 lg:col-span-5">
+          <!-- Labor Cost Card -->
+          <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 class="text-sm font-bold text-slate-900">Labor Time & Rate</h3>
+              <span class="text-xs font-bold text-slate-500">₱{{ laborCost.toFixed(2) }}</span>
             </div>
-            <button @click="addOperation" class="rounded-lg bg-orange-500/40 px-2 py-1 text-xs font-bold hover:bg-orange-500/60">
-              + Add Item
-            </button>
-          </div>
-
-          <!-- Operation List Table -->
-          <div class="p-4 space-y-2.5">
-            <div class="grid grid-cols-12 gap-2 text-[11px] font-bold uppercase text-slate-400 px-1">
-              <span class="col-span-7">Operation Item</span>
-              <span class="col-span-4 text-right">Amount (₱)</span>
-              <span class="col-span-1"></span>
-            </div>
-            <div v-for="(op, idx) in operations" :key="idx" class="grid grid-cols-12 items-center gap-2">
-              <input v-model="op.item" type="text" class="col-span-7 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-800" />
-              <input v-model.number="op.amount" type="number" step="0.5" min="0" class="col-span-4 rounded-xl border border-slate-200 px-2 py-1.5 text-right text-xs font-bold text-slate-800" />
-              <button @click="removeOperation(idx)" class="col-span-1 text-slate-400 hover:text-red-500">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Operation Footer -->
-        <div class="border-t border-slate-100 bg-slate-50 px-5 py-3 flex items-center justify-between">
-          <span class="text-xs font-bold uppercase text-slate-500">TOTAL OPERATION</span>
-          <span class="text-base font-black text-orange-600">₱{{ totalOperationCost.toFixed(2) }}</span>
-        </div>
-      </div>
-
-      <!-- 3. LABOR COST CARD (Slate Header) -->
-      <div class="rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between bg-slate-800 px-5 py-3.5 text-white">
-            <div class="flex items-center gap-2 font-bold text-sm">
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span>LABOR COST</span>
-            </div>
-          </div>
-
-          <!-- Labor Parameters -->
-          <div class="p-5 space-y-4">
             <div>
-              <label class="block text-xs font-semibold text-slate-500">Rate / Hour (₱)</label>
-              <input v-model.number="labor.ratePerHour" type="number" min="0" class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800" />
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Hourly Labor Rate (₱/hr)</label>
+              <input v-model.number="laborRatePerHour" type="number" min="0" class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800" />
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-semibold text-slate-500">Hours</label>
-                <input v-model.number="labor.hours" type="number" min="0" class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800" />
+                <label class="block text-xs font-semibold text-slate-500 mb-1">Hours</label>
+                <input v-model.number="laborHours" type="number" min="0" class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800" />
               </div>
               <div>
-                <label class="block text-xs font-semibold text-slate-500">Minutes</label>
-                <input v-model.number="labor.minutes" type="number" min="0" max="59" class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800" />
+                <label class="block text-xs font-semibold text-slate-500 mb-1">Minutes</label>
+                <input v-model.number="laborMinutes" type="number" min="0" max="59" class="block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Base Cost Summary Card -->
+          <div class="rounded-3xl bg-emerald-600 p-6 text-white shadow-lg shadow-emerald-600/20">
+            <div class="text-xs font-bold uppercase tracking-wider text-emerald-200">TOTAL BASE COST</div>
+            <div class="my-2 text-4xl font-black">₱{{ currentTotalBaseCost.toFixed(2) }}</div>
+            <div class="mt-4 space-y-1 text-xs text-emerald-100 border-t border-emerald-500/50 pt-3">
+              <div class="flex justify-between">
+                <span>Materials (from Unit Economics):</span>
+                <span class="font-bold">₱{{ currentProductMaterialCost.toFixed(2) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Operational Overhead:</span>
+                <span class="font-bold">₱{{ currentProductOpCost.toFixed(2) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Labor:</span>
+                <span class="font-bold">₱{{ laborCost.toFixed(2) }}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Labor Footer -->
-        <div class="border-t border-slate-100 bg-slate-50 px-5 py-3 flex items-center justify-between">
-          <span class="text-xs font-bold uppercase text-slate-500">LABOR TOTAL</span>
-          <span class="text-base font-black text-slate-800">₱{{ totalLaborCost.toFixed(2) }}</span>
+        <!-- Right: 5-Tier Margin Matrix Table (7 cols) -->
+        <div class="lg:col-span-7 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">5-Tier Margin Matrix Table</h3>
+              <p class="text-xs text-slate-500 font-medium">Clear benchmark multipliers to prevent over- or under-charging</p>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="border-b border-slate-100 text-xs font-bold uppercase text-slate-400">
+                <tr>
+                  <th class="py-2.5">Margin Markup</th>
+                  <th class="py-2.5">Base Cost</th>
+                  <th class="py-2.5">Profit</th>
+                  <th class="py-2.5 font-bold text-slate-900">Selling Price</th>
+                  <th class="py-2.5 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="tier in marginTiers" :key="tier.marginPercent" class="hover:bg-slate-50">
+                  <td class="py-3 font-bold text-purple-700">{{ tier.marginPercent }}%</td>
+                  <td class="py-3">₱{{ currentTotalBaseCost.toFixed(2) }}</td>
+                  <td class="py-3 font-semibold text-green-600">+₱{{ (currentTotalBaseCost * (tier.marginPercent / 100)).toFixed(2) }}</td>
+                  <td class="py-3 font-black text-slate-900 text-base">₱{{ (currentTotalBaseCost * (1 + tier.marginPercent / 100)).toFixed(2) }}</td>
+                  <td class="py-3 text-right">
+                    <button
+                      @click="savePrice(currentTotalBaseCost * (1 + tier.marginPercent / 100))"
+                      class="rounded-xl bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                    >
+                      Use Price
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- BASE COST SUMMARY BANNER (Green Banner) -->
-    <div class="my-6 rounded-3xl bg-emerald-600 p-6 text-white shadow-lg shadow-emerald-600/20 flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <div class="text-xs font-bold uppercase tracking-wider text-emerald-200">BASE COST SUMMARY</div>
-        <div class="mt-1 flex items-center gap-4 text-xs font-medium text-emerald-100">
-          <span>Material: ₱{{ totalMaterialCost.toFixed(2) }}</span>
-          <span>•</span>
-          <span>Operation: ₱{{ totalOperationCost.toFixed(2) }}</span>
-          <span>•</span>
-          <span>Labor: ₱{{ totalLaborCost.toFixed(2) }}</span>
+    <!-- TAB 2: MATERIAL BATCHES & UNIT ECONOMICS (Purchase Calculator Module) -->
+    <div v-else class="space-y-6">
+      <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Raw Material Purchase Batches (Reams & Packs)</h3>
+            <p class="text-xs text-slate-500 font-medium">Input your store's purchase invoices to automatically calculate unit price per sheet</p>
+          </div>
+          <button @click="addBatch" class="rounded-2xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700">
+            + Add Material Batch
+          </button>
         </div>
-      </div>
-      <div class="text-right">
-        <div class="text-xs font-bold uppercase tracking-wider text-emerald-200">TOTAL BASE COST</div>
-        <div class="text-4xl font-black text-white">₱{{ totalBaseCost.toFixed(2) }}</div>
-      </div>
-    </div>
 
-    <!-- Bottom 3 Cards: Margin Matrix, Target Selling Price, Bulk Order -->
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      <!-- Margin Matrix (5 cols) -->
-      <div class="lg:col-span-5 rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
-        <div class="bg-purple-700 px-5 py-3.5 text-white font-bold text-sm flex items-center gap-2">
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-          </svg>
-          <span>MARGIN MATRIX</span>
-        </div>
-        <div class="p-4 overflow-x-auto">
-          <table class="w-full text-left text-xs text-slate-600">
-            <thead class="border-b border-slate-100 font-bold uppercase text-slate-400">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="border-b border-slate-100 text-xs font-bold uppercase text-slate-400">
               <tr>
-                <th class="py-2">Base Cost</th>
-                <th class="py-2">Margin</th>
-                <th class="py-2">Profit</th>
-                <th class="py-2 font-black text-slate-800">Selling Price</th>
+                <th class="py-2.5">Material Name</th>
+                <th class="py-2.5">Batch / Pack Price (₱)</th>
+                <th class="py-2.5">Units per Pack</th>
+                <th class="py-2.5 font-bold text-blue-600">Calculated Unit Cost</th>
+                <th class="py-2.5 text-right"></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              <tr v-for="m in [5, 25, 50, 75, 100]" :key="m" class="hover:bg-slate-50 font-medium">
-                <td class="py-2.5">₱{{ totalBaseCost.toFixed(2) }}</td>
-                <td class="py-2.5 font-bold text-purple-700">{{ m }}%</td>
-                <td class="py-2.5 text-green-600 font-semibold">+₱{{ (totalBaseCost * (m / 100)).toFixed(2) }}</td>
-                <td class="py-2.5 font-black text-slate-900">₱{{ (totalBaseCost * (1 + m / 100)).toFixed(2) }}</td>
+              <tr v-for="(batch, idx) in materialBatches" :key="idx" class="hover:bg-slate-50">
+                <td class="py-2.5">
+                  <input v-model="batch.name" type="text" class="w-full rounded-xl border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800" />
+                </td>
+                <td class="py-2.5">
+                  <input v-model.number="batch.packPrice" type="number" step="0.5" class="w-28 rounded-xl border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800" />
+                </td>
+                <td class="py-2.5">
+                  <input v-model.number="batch.unitsPerPack" type="number" min="1" class="w-24 rounded-xl border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-800" />
+                </td>
+                <td class="py-2.5 font-black text-blue-600 text-sm">
+                  ₱{{ (batch.packPrice / (batch.unitsPerPack || 1)).toFixed(3) }} / unit
+                </td>
+                <td class="py-2.5 text-right">
+                  <button @click="materialBatches.splice(idx, 1)" class="text-slate-400 hover:text-red-500">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Target Selling Price (4 cols) -->
-      <div class="lg:col-span-4 rounded-3xl bg-gradient-to-br from-orange-500 to-amber-600 p-6 text-white shadow-xl shadow-orange-500/20 flex flex-col justify-between">
-        <div>
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-orange-100">TARGET SELLING PRICE</span>
-            <div class="flex items-center gap-1 rounded-xl bg-black/20 px-2.5 py-1 text-xs font-bold">
-              <span>Margin:</span>
-              <input v-model.number="targetMargin" type="number" class="w-10 rounded border-0 bg-transparent text-center font-bold text-white focus:outline-none" />
-              <span>%</span>
-            </div>
-          </div>
-          <div class="my-6 text-5xl font-black">₱{{ targetSellingPrice.toFixed(2) }}</div>
-        </div>
-        <div>
-          <input v-model.number="targetMargin" type="range" min="5" max="200" step="5" class="w-full accent-white" />
-        </div>
-      </div>
+      <!-- Operational Overhead Allocation -->
+      <div class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <h3 class="text-base font-bold text-slate-900 mb-1">Monthly Operational Overhead Allocation</h3>
+        <p class="text-xs text-slate-500 font-medium mb-4">Estimated shop monthly overhead distributed over projected volume</p>
 
-      <!-- Bulk Order (3 cols) -->
-      <div class="lg:col-span-3 rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden flex flex-col justify-between">
-        <div>
-          <div class="bg-red-600 px-5 py-3.5 text-white font-bold text-sm flex items-center gap-2">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-            <span>BULK ORDER</span>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Monthly Electricity (₱)</label>
+            <input v-model.number="opOverhead.electricity" type="number" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-800" />
           </div>
-          <div class="p-4 space-y-3 text-xs font-semibold text-slate-600">
-            <div class="flex justify-between items-center">
-              <span>Base Price:</span>
-              <span class="font-bold text-slate-800">₱{{ targetSellingPrice.toFixed(2) }}</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span>Discount (₱):</span>
-              <input v-model.number="bulkDiscount" type="number" min="0" class="w-20 rounded-lg border border-slate-200 px-2 py-1 text-right font-bold text-slate-800" />
-            </div>
-            <div class="flex justify-between items-center">
-              <span>Quantity:</span>
-              <input v-model.number="bulkQuantity" type="number" min="1" class="w-20 rounded-lg border border-slate-200 px-2 py-1 text-right font-bold text-slate-800" />
-            </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Monthly Internet (₱)</label>
+            <input v-model.number="opOverhead.internet" type="number" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-800" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Maintenance Buffer (₱)</label>
+            <input v-model.number="opOverhead.maintenance" type="number" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-800" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Projected Monthly Jobs</label>
+            <input v-model.number="opOverhead.projectedJobs" type="number" min="1" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-800" />
           </div>
         </div>
-        <div class="border-t border-slate-100 bg-slate-50 px-5 py-3 flex items-center justify-between">
-          <span class="text-xs font-bold uppercase text-slate-500">FINAL TOTAL</span>
-          <span class="text-xl font-black text-slate-900">₱{{ bulkFinalTotal.toFixed(2) }}</span>
+
+        <div class="mt-4 rounded-2xl bg-orange-50 p-3.5 text-xs font-bold text-orange-800 flex items-center justify-between">
+          <span>Calculated Overhead per Job:</span>
+          <span class="text-sm font-black">₱{{ calculatedOverheadPerJob.toFixed(2) }} / job</span>
         </div>
       </div>
     </div>
@@ -265,77 +237,78 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 
-const productName = ref('4R Rush ID Package (Set 1)');
-const productSize = ref('4R');
+const activeTab = ref<'PRODUCT_MARGINS' | 'UNIT_ECONOMICS'>('PRODUCT_MARGINS');
+const selectedProduct = ref('RUSH_ID_4R');
 
-// Materials
-const materials = ref([
-  { name: '4R Glossy 230gsm Photo Paper', qty: 1, unitPrice: 8.75 },
-  { name: 'Plastic Sleeve (Optional)', qty: 1, unitPrice: 16.00 },
-  { name: 'Photo Coating Seal', qty: 1, unitPrice: 3.50 },
+// Labor Inputs
+const laborRatePerHour = ref(90.0);
+const laborHours = ref(0);
+const laborMinutes = ref(10);
+
+const laborCost = computed(() => {
+  const mins = laborHours.value * 60 + laborMinutes.value;
+  return (laborRatePerHour.value / 60) * mins;
+});
+
+// Material Batches (Unit Economics)
+const materialBatches = ref([
+  { name: '4R Glossy 230gsm Photo Paper (20 pack)', packPrice: 175.0, unitsPerPack: 20 },
+  { name: 'A4 Copier Paper 70gsm (500 sheet ream)', packPrice: 250.0, unitsPerPack: 500 },
+  { name: 'HP GT53 Black Ink Bottle', packPrice: 380.0, unitsPerPack: 4000 },
+  { name: 'HP GT52 Cyan/Magenta/Yellow Ink Set', packPrice: 1050.0, unitsPerPack: 8000 },
+  { name: 'Photo Plastic Sleeves (100 pack)', packPrice: 150.0, unitsPerPack: 100 },
 ]);
 
-// Operations
-const operations = ref([
-  { item: 'Electricity', amount: 1.00 },
-  { item: 'Internet', amount: 1.00 },
-  { item: 'Ink Consumption', amount: 5.00 },
-  { item: 'Printer Maintenance', amount: 3.00 },
-  { item: 'Other Tools', amount: 5.00 },
-]);
-
-// Labor
-const labor = ref({
-  ratePerHour: 90.0,
-  hours: 0,
-  minutes: 15,
+// Operational Overhead
+const opOverhead = ref({
+  electricity: 1500.0,
+  internet: 1000.0,
+  maintenance: 500.0,
+  projectedJobs: 600,
 });
 
-// Calculations
-const totalMaterialCost = computed(() => {
-  return materials.value.reduce((sum, m) => sum + (m.qty * m.unitPrice), 0);
+const calculatedOverheadPerJob = computed(() => {
+  const total = opOverhead.value.electricity + opOverhead.value.internet + opOverhead.value.maintenance;
+  return total / (opOverhead.value.projectedJobs || 1);
 });
 
-const totalOperationCost = computed(() => {
-  return operations.value.reduce((sum, o) => sum + o.amount, 0);
+// Derived Costs based on selected product
+const currentProductMaterialCost = computed(() => {
+  if (selectedProduct.value === 'RUSH_ID_4R' || selectedProduct.value === 'PASSPORT_4R' || selectedProduct.value === 'PHOTO_4R_FULL') {
+    // 1 sheet of 4R Photo Paper (₱8.75) + Color Ink (₱0.25)
+    return 8.75 + 0.25;
+  }
+  if (selectedProduct.value === 'DOC_BW_A4') {
+    // 1 sheet of Plain Paper (₱0.50) + Black Ink (₱0.10)
+    return 0.50 + 0.10;
+  }
+  if (selectedProduct.value === 'DOC_COLOR_A4') {
+    return 0.50 + 0.35;
+  }
+  return 5.0;
 });
 
-const totalLaborCost = computed(() => {
-  const mins = (labor.value.hours * 60) + labor.value.minutes;
-  return (labor.value.ratePerHour / 60) * mins;
+const currentProductOpCost = computed(() => {
+  return calculatedOverheadPerJob.value;
 });
 
-const totalBaseCost = computed(() => {
-  return totalMaterialCost.value + totalOperationCost.value + totalLaborCost.value;
+const currentTotalBaseCost = computed(() => {
+  return currentProductMaterialCost.value + currentProductOpCost.value + laborCost.value;
 });
 
-// Target Margin & Price
-const targetMargin = ref(50);
-const targetSellingPrice = computed(() => {
-  return totalBaseCost.value * (1 + targetMargin.value / 100);
-});
+const marginTiers = [
+  { marginPercent: 25 },
+  { marginPercent: 50 },
+  { marginPercent: 75 },
+  { marginPercent: 100 },
+  { marginPercent: 150 },
+];
 
-// Bulk Order
-const bulkDiscount = ref(10.0);
-const bulkQuantity = ref(1);
-const bulkFinalTotal = computed(() => {
-  return Math.max(0, (targetSellingPrice.value * bulkQuantity.value) - bulkDiscount.value);
-});
-
-// Add / Remove Handlers
-function addMaterial() {
-  materials.value.push({ name: 'New Material', qty: 1, unitPrice: 5.0 });
+function addBatch() {
+  materialBatches.value.push({ name: 'New Material Batch', packPrice: 100.0, unitsPerPack: 10 });
 }
 
-function removeMaterial(idx: number) {
-  materials.value.splice(idx, 1);
-}
-
-function addOperation() {
-  operations.value.push({ item: 'New Expense', amount: 2.0 });
-}
-
-function removeOperation(idx: number) {
-  operations.value.splice(idx, 1);
+function savePrice(price: number) {
+  alert(`Active price for ${selectedProduct.value} updated to ₱${price.toFixed(2)}.`);
 }
 </script>
