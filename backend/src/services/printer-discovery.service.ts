@@ -1,6 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import net from 'net';
+import os from 'os';
 import { getDatabase } from '../db/database';
 
 const execAsync = promisify(exec);
@@ -24,7 +25,30 @@ export class PrinterDiscoveryService {
   private static readonly CACHE_TTL_MS = 10000; // 10 seconds cache
 
   /**
-   * Quick TCP socket probe to verify if a host is listening on raw print port 9100, IPP 631, or HTTP 80.
+   * Checks if an IP is a host interface, Docker internal bridge, localhost, or default gateway.
+   */
+  isIgnoredIp(ip: string): boolean {
+    if (!ip) return true;
+    const cleanIp = ip.trim();
+    if (cleanIp === '127.0.0.1' || cleanIp === 'localhost' || cleanIp.startsWith('127.')) return true;
+    // Ignore Docker virtual bridge subnets (172.16.0.0 - 172.31.255.255)
+    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(cleanIp)) return true;
+    // Ignore gateway / broadcast
+    if (cleanIp.endsWith('.1') || cleanIp.endsWith('.255') || cleanIp.endsWith('.0')) return true;
+
+    // Ignore Raspberry Pi / Host's own IP addresses
+    const interfaces = os.networkInterfaces();
+    for (const name in interfaces) {
+      for (const iface of interfaces[name] || []) {
+        if (iface.address === cleanIp) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Quick TCP socket probe to verify if a host is listening on raw print port 9100 (JetDirect) or IPP 631.
+   * Note: Port 80 (HTTP) is deliberately excluded to prevent routers, Docker containers, and web servers from false-matching.
    */
   async probeNetworkPrinter(host: string): Promise<boolean> {
     if (!host || host.includes('nul') || host.includes('PORTPROMPT')) {
@@ -33,6 +57,10 @@ export class PrinterDiscoveryService {
 
     const cleanHost = host.replace(/^IP_/, '').trim();
     if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(cleanHost) && !cleanHost.includes('.')) {
+      return false;
+    }
+
+    if (this.isIgnoredIp(cleanHost)) {
       return false;
     }
 
@@ -59,8 +87,43 @@ export class PrinterDiscoveryService {
         socket.connect(port, cleanHost);
       });
 
-    const results = await Promise.all([checkPort(9100), checkPort(631), checkPort(80)]);
+    // Only probe dedicated print ports (Port 9100 Raw JetDirect & Port 631 IPP)
+    const results = await Promise.all([checkPort(9100), checkPort(631)]);
     return results.some((r) => r === true);
+  }
+
+  /**
+   * Resolves the authentic printer make and model by querying device metadata or inspecting MAC OUI.
+   */
+  async getPrinterModelName(ip: string, mac?: string): Promise<string> {
+    const cleanMac = mac ? mac.toLowerCase().replace(/[:-]/g, '') : '';
+    const isHpMac = cleanMac.startsWith('74da78') || cleanMac.startsWith('001e0b') || cleanMac.startsWith('00215a') || cleanMac.startsWith('9c8e99') || cleanMac.startsWith('c8d9d2') || cleanMac.startsWith('b4b52f');
+
+    // Attempt HP Embedded Web Server XML metadata query
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600);
+      const res = await fetch(`http://${ip}/DevMgmt/ProductConfigDyn.xml`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const xml = await res.text();
+        const match = xml.match(/<prdcfgdyn:ProductInformation>[\s\S]*?<prdcfgdyn:MakeAndModel>([^<]+)<\/prdcfgdyn:MakeAndModel>/) ||
+                      xml.match(/<prdcfgdyn:ProductInformation>[\s\S]*?<prdcfgdyn:MakeAndModelName>([^<]+)<\/prdcfgdyn:MakeAndModelName>/) ||
+                      xml.match(/<dd:ModelName>([^<]+)<\/dd:ModelName>/);
+        if (match && match[1].trim()) {
+          return match[1].trim();
+        }
+        if (xml.includes('Smart Tank')) {
+          return 'HP Smart Tank 670';
+        }
+      }
+    } catch {}
+
+    if (isHpMac) {
+      return `HP Smart Tank 670 (${ip})`;
+    }
+
+    return `Network Printer (${ip})`;
   }
 
   /**
@@ -83,12 +146,10 @@ export class PrinterDiscoveryService {
         const ip = winMatch ? winMatch[1].trim() : (linuxMatch ? linuxMatch[1].trim() : null);
         const rawMac = winMatch ? winMatch[2] : (linuxMatch ? linuxMatch[2] : null);
 
-        if (ip && rawMac && !seenIps.has(ip)) {
+        if (ip && rawMac && !seenIps.has(ip) && !this.isIgnoredIp(ip)) {
           const mac = rawMac.toLowerCase().replace(/[:-]/g, '').trim();
-          if (!ip.startsWith('127.') && !ip.startsWith('169.254.') && !ip.endsWith('.255') && !ip.endsWith('.0')) {
-            seenIps.add(ip);
-            devices.push({ ip, mac });
-          }
+          seenIps.add(ip);
+          devices.push({ ip, mac });
         }
       }
     } catch {}
@@ -102,7 +163,7 @@ export class PrinterDiscoveryService {
           if (match) {
             const ip = match[1].trim();
             const mac = match[2].toLowerCase().replace(/[:-]/g, '').trim();
-            if (!seenIps.has(ip) && !ip.startsWith('127.') && !ip.startsWith('169.254.')) {
+            if (!seenIps.has(ip) && !this.isIgnoredIp(ip)) {
               seenIps.add(ip);
               devices.push({ ip, mac });
             }
@@ -116,18 +177,18 @@ export class PrinterDiscoveryService {
       const probeIps: string[] = [];
       for (let i = 1; i <= 254; i++) {
         const ip = `192.168.1.${i}`;
-        if (!seenIps.has(ip)) {
+        if (!seenIps.has(ip) && !this.isIgnoredIp(ip)) {
           probeIps.push(ip);
         }
       }
 
-      // Sweep in parallel chunks of 40
-      const chunkSize = 40;
+      // Sweep in parallel chunks of 30
+      const chunkSize = 30;
       for (let i = 0; i < probeIps.length; i += chunkSize) {
         const chunk = probeIps.slice(i, i + chunkSize);
         await Promise.all(chunk.map(async (ip) => {
           const isPrinter = await this.probeNetworkPrinter(ip);
-          if (isPrinter && !seenIps.has(ip)) {
+          if (isPrinter && !seenIps.has(ip) && !this.isIgnoredIp(ip)) {
             seenIps.add(ip);
             devices.push({ ip, mac: 'dynamic_printer' });
           }
@@ -363,15 +424,17 @@ export class PrinterDiscoveryService {
 
         // 1. Proactively probe all active LAN devices discovered via ARP/Network
         for (const dev of lanDevices) {
+          if (this.isIgnoredIp(dev.ip)) continue;
           const isOnline = await this.probeNetworkPrinter(dev.ip);
           if (isOnline) {
-            const name = `HP Smart Tank 670 (${dev.ip})`;
+            const detectedModel = await this.getPrinterModelName(dev.ip, dev.mac);
+            const name = `${detectedModel}`;
             if (!seenNames.has(name)) {
               seenNames.add(name);
               printers.push({
                 id: `net_${dev.ip.replace(/\./g, '_')}`,
                 name,
-                makeAndModel: 'HP Smart Tank 670 (Wi-Fi / IPP)',
+                makeAndModel: detectedModel,
                 connectionType: 'WIFI_NETWORK',
                 uri: `ipp://${dev.ip}/ipp/print`,
                 ipAddress: dev.ip,

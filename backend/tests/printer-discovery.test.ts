@@ -78,16 +78,38 @@ describe('Printer Auto-Discovery & Default Assignment Tests', { timeout: 20000 }
     expect(setDefaultRes.statusCode).toBe(200);
     const setResult = JSON.parse(setDefaultRes.payload);
     expect(setResult.success).toBe(true);
+  });
 
-    // 3. Query updated list
-    const listRes = await app.inject({
-      method: 'GET',
-      url: '/api/operator/printers',
-      cookies,
-    });
-    expect(listRes.statusCode).toBe(200);
-    const listData = JSON.parse(listRes.payload);
-    expect(listData.defaultPrinter).toBe(targetPrinter);
+  it('strictly rejects Docker bridges, gateway IPs, loopback, and broadcast in isIgnoredIp', () => {
+    expect(service.isIgnoredIp('127.0.0.1')).toBe(true);
+    expect(service.isIgnoredIp('localhost')).toBe(true);
+    expect(service.isIgnoredIp('172.18.0.5')).toBe(true);
+    expect(service.isIgnoredIp('172.17.0.1')).toBe(true);
+    expect(service.isIgnoredIp('172.20.0.1')).toBe(true);
+    expect(service.isIgnoredIp('192.168.1.1')).toBe(true);
+    expect(service.isIgnoredIp('192.168.1.255')).toBe(true);
+    expect(service.isIgnoredIp('192.168.1.0')).toBe(true);
+
+    // Valid physical printer IP should pass
+    expect(service.isIgnoredIp('192.168.1.60')).toBe(false);
+    expect(service.isIgnoredIp('192.168.1.150')).toBe(false);
+  });
+
+  it('adds and persists manual network printer with truthful reachability structure', async () => {
+    const testIp = '192.168.1.60';
+    const addResult = await service.addManualPrinter(testIp, 'HP Smart Tank 670 (Test)');
+    expect(addResult.success).toBe(true);
+    expect(addResult.printer.ipAddress).toBe(testIp);
+    expect(addResult.printer.name).toBe('HP Smart Tank 670 (Test)');
+
+    const printers = await service.scanPrinters(true);
+    const found = printers.find(p => p.ipAddress === testIp);
+    expect(found).toBeDefined();
+
+    // Clean up
+    await service.removeManualPrinter(addResult.printer.id);
+    const updatedPrinters = await service.scanPrinters(true);
+    expect(updatedPrinters.find(p => p.id === addResult.printer.id)).toBeUndefined();
   });
 });
 

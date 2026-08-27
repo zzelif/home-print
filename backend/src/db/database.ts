@@ -62,6 +62,13 @@ export class DatabaseManager {
           uri TEXT NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+        DELETE FROM manual_printers 
+        WHERE ip_address LIKE '172.18.%' 
+           OR ip_address LIKE '172.17.%' 
+           OR ip_address LIKE '172.19.%' 
+           OR ip_address LIKE '172.20.%' 
+           OR ip_address LIKE '%.1' 
+           OR ip_address LIKE '%.255';
       `);
     } catch {}
   }
