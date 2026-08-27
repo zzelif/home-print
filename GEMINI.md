@@ -32,7 +32,7 @@
    - Convert raster image and page buffers to ITU-R BT.601 $Y, C_b, C_r$ space.
    - Evaluate cylindrical chromaticity distance $\text{ChromaDist}^2 = (C_b - 128)^2 + (C_r - 128)^2 > 100$ strictly on non-paper printed ink pixels ($Y < 246$).
    - Check RGB channel spread ($|R-G| \le 10 \land |G-B| \le 10$ across $\ge 98\%$ pixels) to guarantee false-color immunity for grayscale-in-RGB photos.
-   - Enforce graduated pricing tiers: Tier 0 (B&W $\rho < 1.5\%$) @ ₱3.00, Tier 1 (Spot $1.5\% \le \rho < 12\%$) @ ₱8.00, Tier 2 (Medium $12\% \le \rho < 50\%$) @ ₱15.00, Tier 3 (Heavy/Photo $\rho \ge 50\%$) @ ₱20.00.
+   - Enforce graduated pricing tiers: Tier 0 (B&W $\rho < 1.0\%$) @ ₱3.00, Tier 1 (Spot $1.0\% \le \rho < 8.5\%$) @ ₱8.00, Tier 2 (Medium $8.5\% \le \rho < 35.0\%$) @ ₱15.00, Tier 3 (Heavy/Photo $\rho \ge 35.0\%$) @ ₱20.00.
 
 8. **Multi-File Batch Collation & Dynamic Orientation Standards**:
    - Ingest multi-image and multi-document uploads into a single collated multi-page print job order with unified per-page pricing and 1-click batch hardware spooling.

@@ -48,11 +48,11 @@ HomePrint OS operates as a self-contained, offline-first print shop management s
 ### 2.1 Academic Pixel & Pigment Color Classification Standard
 - **ITU-R BT.601 Cylindrical Chromaticity**: Converts raster pixel buffers to ITU-R BT.601 $Y, C_b, C_r$ space. Achromatic distance $\text{ChromaDist}^2 = (C_b - 128)^2 + (C_r - 128)^2$ is evaluated strictly on non-paper printed ink pixels ($Y < 246$) with cylindrical threshold $T = 10$ ($\text{ChromaDist}^2 > 100$).
 - **Grayscale-in-RGB Immunity**: Detects black-and-white photos or documents encoded inside 3-channel RGB containers by validating channel spread $|R-G| \le 10 \land |G-B| \le 10$ across $\ge 98\%$ of pixels, preventing false-color overcharging.
-- **Calibrated Multi-Tier Pricing**:
-  - **Tier 0 (Monochrome B&W)**: $\rho_{chroma} < 1.5\% \implies$ **₱3.00**
-  - **Tier 1 (Spot / Logo Accent)**: $1.5\% \le \rho_{chroma} < 12\% \implies$ **₱8.00**
-  - **Tier 2 (Medium Color / Slides)**: $12\% \le \rho_{chroma} < 50\% \implies$ **₱15.00**
-  - **Tier 3 (Heavy / Full Photo Color)**: $\rho_{chroma} \ge 50\% \implies$ **₱20.00**
+- **Calibrated Multi-Tier Pricing (ISO/IEC 24712 Standards)**:
+  - **Tier 0 (Monochrome B&W)**: $\rho_{chroma} < 1.0\% \implies$ **₱3.00** ($< 1.0\%$ non-paper ink coverage)
+  - **Tier 1 (Spot / Logo Accent)**: $1.0\% \le \rho_{chroma} < 8.5\% \implies$ **₱8.00**
+  - **Tier 2 (Medium Color Graphics / Charts / Slides)**: $8.5\% \le \rho_{chroma} < 35.0\% \implies$ **₱15.00**
+  - **Tier 3 (Heavy / Full Photo Color)**: $\rho_{chroma} \ge 35.0\% \implies$ **₱20.00**
 
 ### 2.2 Multi-File Batch Collation & Dynamic Orientation
 - Ingests multi-image and multi-document uploads into a single collated multi-page print job order with unified per-page pricing and 1-click batch hardware spooling.

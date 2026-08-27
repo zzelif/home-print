@@ -58,6 +58,35 @@ export const operatorPrintersRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send(result);
   });
 
+  // Add manual Wi-Fi / IP printer with truthful reachability check & DB persistence
+  fastify.post<{
+    Body: { ipAddress: string; printerName?: string };
+  }>('/api/operator/printers/add-manual', async (request, reply) => {
+    const { ipAddress, printerName } = request.body || {};
+    if (!ipAddress) {
+      return reply.status(400).send({ error: 'ipAddress is required' });
+    }
+    try {
+      const result = await discoveryService.addManualPrinter(ipAddress, printerName);
+      return reply.send(result);
+    } catch (err: any) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // Delete manual printer
+  fastify.delete<{
+    Params: { id: string };
+  }>('/api/operator/printers/manual/:id', async (request, reply) => {
+    const { id } = request.params;
+    try {
+      const result = await discoveryService.removeManualPrinter(id);
+      return reply.send(result);
+    } catch (err: any) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
   // 1-Click Hardware Calibration Swatch Print
   fastify.post<{
     Body?: { printerName?: string };

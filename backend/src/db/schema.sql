@@ -110,7 +110,19 @@ INSERT OR IGNORE INTO products (id, name, category, paper_size, paper_type, defa
 ('prod_passport_4r', '4R Passport Package (Set 4: 6x Passport)', 'RUSH_ID', '4R', 'GLOSSY_PHOTO', 40.0),
 ('prod_polaroid_4r', 'Polaroid Mini Prints (4R: 4 pcs)', 'POLAROID', '4R', 'GLOSSY_PHOTO', 35.0);
 
+-- Manually Added Wi-Fi / IP Printers (Persisted Network Devices)
+CREATE TABLE IF NOT EXISTS manual_printers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    ip_address TEXT NOT NULL,
+    port INTEGER DEFAULT 631,
+    protocol TEXT DEFAULT 'IPP',
+    uri TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- System Settings
 INSERT OR IGNORE INTO system_settings (key, value) VALUES
-('default_printer_name', 'HP Smart Tank 660-670 series [28C379]'),
+('default_printer_name', 'HP_Smart_Tank_670'),
 ('default_printer_type', 'WIFI_NETWORK');
+

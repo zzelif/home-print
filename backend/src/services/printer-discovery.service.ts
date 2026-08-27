@@ -137,6 +137,34 @@ export class PrinterDiscoveryService {
       macToIpMap[dev.mac] = dev.ip;
     }
 
+    // 0. Load persisted manual network printers from database
+    try {
+      const manualRows = db.prepare("SELECT * FROM manual_printers").all() as Array<{
+        id: string;
+        name: string;
+        ip_address: string;
+        port: number;
+        protocol: string;
+        uri: string;
+      }>;
+
+      for (const m of manualRows) {
+        const isOnline = await this.probeNetworkPrinter(m.ip_address);
+        printers.push({
+          id: m.id,
+          name: m.name,
+          makeAndModel: 'Manual Wi-Fi IPP Printer',
+          connectionType: 'WIFI_NETWORK',
+          uri: m.uri,
+          ipAddress: m.ip_address,
+          portName: m.ip_address,
+          status: isOnline ? 'ONLINE' : 'OFFLINE',
+          isDefault: false,
+          isVirtual: false,
+        });
+      }
+    } catch {}
+
     if (process.platform === 'win32') {
       try {
         const psCommand = `powershell -NoProfile -Command "Get-CimInstance Win32_Printer | Select-Object Name, PortName, DriverName, Default, WorkOffline, PrinterStatus | ConvertTo-Json -Compress"`;
@@ -260,7 +288,50 @@ export class PrinterDiscoveryService {
       try {
         const seenNames = new Set<string>();
 
-        // 1. Inspect configured CUPS queues
+        // 0. Explicit Environment IP Probe (if HP_PRINTER_IP or PRINTER_IP configured)
+        const explicitIp = process.env.HP_PRINTER_IP || process.env.PRINTER_IP;
+        if (explicitIp) {
+          const isOnline = await this.probeNetworkPrinter(explicitIp);
+          const name = `HP Smart Tank 670 (${explicitIp})`;
+          seenNames.add(name);
+          printers.push({
+            id: `net_${explicitIp.replace(/\./g, '_')}`,
+            name,
+            makeAndModel: 'HP Smart Tank 670 (Wi-Fi / IPP)',
+            connectionType: 'WIFI_NETWORK',
+            uri: `ipp://${explicitIp}/ipp/print`,
+            ipAddress: explicitIp,
+            portName: `Wi-Fi (${explicitIp})`,
+            status: isOnline ? 'ONLINE' : 'OFFLINE',
+            isDefault: false,
+            isVirtual: false,
+          });
+        }
+
+        // 1. Proactively probe all active LAN devices discovered via ARP/Network
+        for (const dev of lanDevices) {
+          const isOnline = await this.probeNetworkPrinter(dev.ip);
+          if (isOnline) {
+            const name = `HP Smart Tank 670 (${dev.ip})`;
+            if (!seenNames.has(name)) {
+              seenNames.add(name);
+              printers.push({
+                id: `net_${dev.ip.replace(/\./g, '_')}`,
+                name,
+                makeAndModel: 'HP Smart Tank 670 (Wi-Fi / IPP)',
+                connectionType: 'WIFI_NETWORK',
+                uri: `ipp://${dev.ip}/ipp/print`,
+                ipAddress: dev.ip,
+                portName: `Wi-Fi IPP (${dev.ip})`,
+                status: 'ONLINE',
+                isDefault: false,
+                isVirtual: false,
+              });
+            }
+          }
+        }
+
+        // 2. Inspect configured CUPS queues
         try {
           const { stdout: lpstatOut } = await execAsync('lpstat -v');
           const lines = lpstatOut.split('\n');
@@ -304,7 +375,7 @@ export class PrinterDiscoveryService {
           }
         } catch {}
 
-        // 2. Discover available devices via lpinfo -v
+        // 3. Discover available devices via lpinfo -v
         try {
           const { stdout: lpinfoOut } = await execAsync('lpinfo -v');
           const lines = lpinfoOut.split('\n');
@@ -410,6 +481,74 @@ export class PrinterDiscoveryService {
   }
 
   /**
+   * Adds and persists a manual Wi-Fi/Network printer by IP address with truthful reachability check.
+   */
+  async addManualPrinter(ipAddress: string, printerName?: string): Promise<{ success: boolean; isOnline: boolean; printer: DiscoveredPrinter; message: string }> {
+    const cleanIp = ipAddress.trim().replace(/^IP_/, '');
+    if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(cleanIp) && !cleanIp.includes('.')) {
+      throw new Error(`Invalid IP address format: "${ipAddress}"`);
+    }
+
+    const name = printerName?.trim() || `HP Smart Tank (${cleanIp})`;
+    const id = `manual_${cleanIp.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    const uri = `ipp://${cleanIp}:631/ipp/print`;
+
+    // 1. Truthful Reachability Probe (TCP 9100, 631, 80)
+    const isOnline = await this.probeNetworkPrinter(cleanIp);
+    const status: DiscoveredPrinter['status'] = isOnline ? 'ONLINE' : 'OFFLINE';
+
+    // 2. Persist to SQLite
+    const db = getDatabase();
+    db.prepare(`
+      INSERT INTO manual_printers (id, name, ip_address, port, protocol, uri, created_at)
+      VALUES (?, ?, ?, 631, 'IPP', ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name, uri = excluded.uri, ip_address = excluded.ip_address
+    `).run(id, name, cleanIp, uri);
+
+    // 3. Optional: Register with CUPS if available on Linux
+    if (process.platform !== 'win32') {
+      try {
+        await execAsync(`lpadmin -p "${name.replace(/\s+/g, '_')}" -E -v "${uri}" -m everywhere 2>/dev/null || true`);
+      } catch {}
+    }
+
+    // Invalidate discovery cache
+    PrinterDiscoveryService.cachedPrinters = null;
+
+    const printer: DiscoveredPrinter = {
+      id,
+      name,
+      makeAndModel: 'Manual Wi-Fi IPP Printer',
+      connectionType: 'WIFI_NETWORK',
+      uri,
+      ipAddress: cleanIp,
+      portName: cleanIp,
+      status,
+      isDefault: false,
+      isVirtual: false,
+    };
+
+    return {
+      success: true,
+      isOnline,
+      printer,
+      message: isOnline 
+        ? `Printer at ${cleanIp} is Online & Ready!`
+        : `Printer saved (${cleanIp}), but is currently Offline / Unreachable. Check printer power and Wi-Fi connection.`,
+    };
+  }
+
+  /**
+   * Deletes a manually saved network printer.
+   */
+  async removeManualPrinter(id: string): Promise<{ success: boolean; message: string }> {
+    const db = getDatabase();
+    db.prepare("DELETE FROM manual_printers WHERE id = ? OR ip_address = ?").run(id, id);
+    PrinterDiscoveryService.cachedPrinters = null;
+    return { success: true, message: 'Printer removed.' };
+  }
+
+  /**
    * Sets the specified printer as the single default system printer.
    */
   async setDefaultPrinter(printerName: string): Promise<{ success: boolean; message: string }> {
@@ -444,3 +583,4 @@ export class PrinterDiscoveryService {
     return row ? row.value : 'HP_Smart_Tank_670';
   }
 }
+

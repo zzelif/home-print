@@ -11,23 +11,18 @@ services:
     image: homeprint:latest
     container_name: homeprint
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    network_mode: "host"
     environment:
       - NODE_ENV=production
       - PORT=5000
       - DATABASE_PATH=/data/homeprint.sqlite
-      # Optional: Explicit IP of HP Smart Tank 670 on your local Wi-Fi
+      # Optional: Explicit IP of HP Smart Tank 670 on your local Wi-Fi if fixed
       # - HP_PRINTER_IP=192.168.1.50
     volumes:
       # Persistent SQLite database, customer uploads & cache on external SSD (/mnt/storage/homeprint_os)
       - ${DATA_PATH:-/mnt/storage/homeprint_os/data}:/data
-      # Optional: Share host CUPS daemon socket if CUPS runs on host
+      # Share host CUPS daemon socket if CUPS runs on host
       - /var/run/cups:/var/run/cups:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - homelab-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/operator/printers/scan"]
       interval: 30s

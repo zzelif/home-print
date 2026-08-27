@@ -77,7 +77,7 @@ HomePrint OS achieves complete parity with commercial SaaS systems (such as Prin
 * **Capabilities**:
   - **Headless LibreOffice Sandbox**: Automatically converts `.docx`, `.pptx`, `.doc`, `.xls` to standardized PDFs within an ephemeral sandbox (capped at 256MB RAM and 15s timeout).
   - **Page Inspection**: Extracts total page count and detects paper size (A4, Letter, Legal).
-  - **Color vs. Monochrome Channel Detection**: Scans pages to identify pure black & white pages (charged at ₱2.00–₱5.00) vs full-color pages (charged at ₱10.00–₱15.00).
+  - **Color vs. Monochrome Channel Detection**: Scans pages to identify pure black & white pages (Tier 0 Monochrome @ ₱3.00, Tier 1 Spot Accent @ ₱8.00) vs rich color pages (Tier 2 Graphics @ ₱15.00, Tier 3 Full Photo @ ₱20.00).
   - **Page Range Selector**: Operator can specify custom page ranges (e.g. `1-5`, `even`, `odd`, `1,3,7`).
   - **Duplex Toggle**: 1-click double-sided printing toggle passed to CUPS (`-o sides=two-sided-long-edge`).
 

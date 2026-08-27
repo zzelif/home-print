@@ -51,6 +51,19 @@ export class DatabaseManager {
     try {
       this.db.exec('ALTER TABLE job_orders ADD COLUMN service_type TEXT;');
     } catch {}
+    try {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS manual_printers (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          ip_address TEXT NOT NULL,
+          port INTEGER DEFAULT 631,
+          protocol TEXT DEFAULT 'IPP',
+          uri TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+    } catch {}
   }
 
   getDb(): Database.Database {

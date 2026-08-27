@@ -157,6 +157,15 @@
                 </svg>
                 <span>Active</span>
               </div>
+
+              <!-- Remove Manual Printer Button -->
+              <button
+                v-if="p.id.startsWith('manual_')"
+                @click="deleteManualPrinter(p.id)"
+                class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 transition min-h-[40px]"
+              >
+                Remove
+              </button>
             </div>
           </div>
         </div>
@@ -165,21 +174,25 @@
         <div class="mt-6 rounded-2xl border border-dashed border-slate-300 p-4 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">Add Wi-Fi Printer by IP Address</h4>
-            <p class="text-xs text-slate-500">Connect to an office or home network printer outside the local subnet</p>
+            <p class="text-xs text-slate-500">Persists network IP to database and actively probes ports 9100/631</p>
           </div>
           <div class="flex items-center gap-2 w-full sm:w-auto">
             <input
               v-model="manualIp"
               type="text"
               placeholder="e.g. 192.168.1.60"
-              class="w-full sm:w-44 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-mono text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[44px]"
+              :disabled="isAddingPrinter"
+              class="w-full sm:w-44 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-mono text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[44px] disabled:opacity-50"
             />
             <button
               @click="addManualNetworkPrinter"
-              :disabled="!manualIp"
-              class="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition shrink-0 min-h-[44px]"
+              :disabled="!manualIp || isAddingPrinter"
+              class="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition shrink-0 min-h-[44px]"
             >
-              Add Printer
+              <svg v-if="isAddingPrinter" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>{{ isAddingPrinter ? 'Probing...' : 'Add Printer' }}</span>
             </button>
           </div>
         </div>
@@ -258,6 +271,7 @@ const jobStore = useJobStore();
 const printers = ref<DiscoveredPrinter[]>([]);
 const activeDefaultPrinter = ref('HP Smart Tank 660-670 series [28C379]');
 const isScanning = ref(false);
+const isAddingPrinter = ref(false);
 const isPrintingSwatch = ref(false);
 const lastScannedAt = ref<string | null>(null);
 const manualIp = ref('');
@@ -358,22 +372,57 @@ async function testPrintSwatch() {
   }
 }
 
-function addManualNetworkPrinter() {
+async function addManualNetworkPrinter() {
   if (!manualIp.value.trim()) return;
   const ip = manualIp.value.trim();
-  printers.value.unshift({
-    id: `net_${ip.replace(/\./g, '_')}`,
-    name: `HP Smart Tank (${ip})`,
-    makeAndModel: 'Manual Wi-Fi IPP Printer',
-    connectionType: 'WIFI_NETWORK',
-    uri: `ipp://${ip}:631/ipp/print`,
-    ipAddress: ip,
-    portName: ip,
-    status: 'ONLINE',
-    isDefault: false,
-    isVirtual: false,
-  });
-  notificationBanner.value = { type: 'success', message: `Added manual network printer IP (${ip}) to active list.` };
-  manualIp.value = '';
+  isAddingPrinter.value = true;
+  notificationBanner.value = null;
+
+  try {
+    const res = await fetch('/api/operator/printers/add-manual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ipAddress: ip }),
+      credentials: 'include',
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      await fetchPrinters();
+      await jobStore.fetchPrinterStatus();
+      notificationBanner.value = {
+        type: data.isOnline ? 'success' : 'error',
+        message: data.message,
+      };
+      manualIp.value = '';
+    } else {
+      notificationBanner.value = {
+        type: 'error',
+        message: data.error || 'Failed to add manual printer.',
+      };
+    }
+  } catch (err: any) {
+    notificationBanner.value = {
+      type: 'error',
+      message: `Network error: ${err.message}`,
+    };
+  } finally {
+    isAddingPrinter.value = false;
+  }
+}
+
+async function deleteManualPrinter(id: string) {
+  try {
+    const res = await fetch(`/api/operator/printers/manual/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (res.ok) {
+      await fetchPrinters();
+      await jobStore.fetchPrinterStatus();
+      notificationBanner.value = { type: 'success', message: 'Manual printer removed.' };
+    }
+  } catch (err) {
+    notificationBanner.value = { type: 'error', message: 'Failed to remove manual printer.' };
+  }
 }
 </script>

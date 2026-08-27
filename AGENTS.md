@@ -80,11 +80,11 @@ The primary operator of this system is non-technical, accessing the web OS from 
 
 1. **ITU-R BT.601 Cylindrical Chromaticity Math**: Document color classification must convert pixel buffers to ITU-R BT.601 $Y, C_b, C_r$ space. Achromatic distance $\text{ChromaDist}^2 = (C_b - 128)^2 + (C_r - 128)^2$ must be evaluated strictly on non-paper printed ink pixels ($Y < 246$) with cylindrical threshold $T = 10$ ($\text{ChromaDist}^2 > 100$).
 2. **Grayscale-in-RGB Immunity**: Detect grayscale photos or black-and-white documents encoded inside 3-channel RGB containers by checking channel spread $|R-G| \le 10 \land |G-B| \le 10$ across $\ge 98\%$ of pixels, preventing false-color overcharging.
-3. **Calibrated Multi-Tier Pricing Model**:
-   - **Tier 0 (Monochrome B&W)**: $\rho_{chroma} < 1.5\% \implies$ **₱3.00**
-   - **Tier 1 (Spot / Logo Accent)**: $1.5\% \le \rho_{chroma} < 12\% \implies$ **₱8.00**
-   - **Tier 2 (Medium Color Graphics / Slides)**: $12\% \le \rho_{chroma} < 50\% \implies$ **₱15.00**
-   - **Tier 3 (Heavy / Full Photo Color)**: $\rho_{chroma} \ge 50\% \implies$ **₱20.00**
+3. **Calibrated Multi-Tier Pricing Model (ISO/IEC 24712 Standards)**:
+   - **Tier 0 (Monochrome B&W)**: $\rho_{chroma} < 1.0\% \implies$ **₱3.00**
+   - **Tier 1 (Spot / Logo Accent)**: $1.0\% \le \rho_{chroma} < 8.5\% \implies$ **₱8.00**
+   - **Tier 2 (Medium Color Graphics / Slides / Charts)**: $8.5\% \le \rho_{chroma} < 35.0\% \implies$ **₱15.00**
+   - **Tier 3 (Heavy / Full Photo Color)**: $\rho_{chroma} \ge 35.0\% \implies$ **₱20.00**
 
 ---
 

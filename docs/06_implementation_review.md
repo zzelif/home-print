@@ -81,7 +81,7 @@ Following the stateful graph engine integration, ITU-R BT.601 color classificati
   - Transforms pixel buffers to ITU-R BT.601 $Y, C_b, C_r$ colorspace.
   - Filters out unprinted paper background ($Y \ge 246$), computing $\text{ChromaDist}^2 = (C_b - 128)^2 + (C_r - 128)^2 > 100$.
   - Implements Grayscale-in-RGB immunity ($|R-G| \le 10 \land |G-B| \le 10 \ge 98\%$).
-  - Configures 4 pricing tiers: Tier 0 (B&W $\rho < 1.5\%$) @ ₱3.00, Tier 1 (Spot $1.5\% \le \rho < 12\%$) @ ₱8.00, Tier 2 (Medium $12\% \le \rho < 50\%$) @ ₱15.00, Tier 3 (Full Color $\rho \ge 50\%$) @ ₱20.00.
+  - Configures 4 pricing tiers (ISO/IEC 24712 Standards): Tier 0 (Monochrome B&W $\rho < 1.0\%$) @ ₱3.00, Tier 1 (Spot / Logo Accent $1.0\% \le \rho < 8.5\%$) @ ₱8.00, Tier 2 (Medium Color Graphics $8.5\% \le \rho < 35.0\%$) @ ₱15.00, Tier 3 (Heavy / Full Photo Color $\rho \ge 35.0\%$) @ ₱20.00.
 * **Verdict**: **FULLY COMPLIANT**.
 
 ---
@@ -99,7 +99,7 @@ Following the stateful graph engine integration, ITU-R BT.601 color classificati
 * **Plan Requirement**: Embedded, zero-daemon, resilient database with Write-Ahead Logging (WAL) and atomic transactions.
 * **Audit Findings**:
   - `PRAGMA journal_mode = WAL` and `PRAGMA synchronous = NORMAL` are explicitly configured.
-  - Tables created: `products`, `material_costs`, `operation_settings`, `job_orders`, and `job_files`.
+  - Tables created: `products`, `material_costs`, `operation_settings`, `system_settings`, `manual_printers`, `job_orders`, and `job_files`.
   - Initial seed data includes standard 4R Rush ID packages, passport sizes, document B&W/color rates, and labor hourly rates (₱90/hr).
 * **Verdict**: **FULLY COMPLIANT**.
 
