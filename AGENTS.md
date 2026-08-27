@@ -37,9 +37,9 @@ All document ingestion, layout processing, costing lock, preflight verification,
 The primary operator of this system is non-technical, accessing the web OS from a mobile phone, tablet, or laptop trackpad/touchscreen over LAN:
 
 1. **Zero Technical Jargon**: NEVER display technical terms like `"DPI"`, `"PPD"`, `"CUPS"`, `"PostScript"`, `"Spooler"`, `"Baud Rate"`, or `"MIME Type"` on operator views. Use descriptive plain language:
-   - Instead of *"300 DPI High Resolution"*, show: 🟢 *"Crisp & Clear"*
-   - Instead of *"PPD Option Parsed"*, show: 🟢 *"Printer Ready"*
-   - Instead of *"CUPS Spool Error"*, show: 🔴 *"Paper Jam or Disconnected Cable"*
+   - Instead of *"300 DPI High Resolution"*, show: *"Crisp & Clear"*
+   - Instead of *"PPD Option Parsed"*, show: *"Printer Ready"*
+   - Instead of *"CUPS Spool Error"*, show: *"Paper Jam or Disconnected Cable"*
 2. **Giant Touch Targets (56px+)**: All actionable buttons must be at least **56px high** with clear high-contrast coloring for effortless tapping on phones and tablets.
 3. **High-Contrast Currency Display**:
    - Total due must be in 32pt+ bold font.

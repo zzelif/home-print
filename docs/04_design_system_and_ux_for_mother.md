@@ -40,17 +40,17 @@ Color is used strictly to communicate system state and guide the operator's eye:
 ├──────────────┬───────────┬──────────────────────────────────────────────────┤
 │ Semantic Role│ Hex Code  │ UI Usage                                         │
 ├──────────────┼───────────┼──────────────────────────────────────────────────┤
-│ 🟢 Action Go │ `#16A34A` │ Big Green **PRINT** Button, POS Change Display,  │
+│ Action Go    │ `#16A34A` │ Big Green **PRINT** Button, POS Change Display,  │
 │              │           │ Printer Ready Status, High DPI Crisp Badge       │
 ├──────────────┼───────────┼──────────────────────────────────────────────────┤
-│ 🔵 Workflow  │ `#2563EB` │ Photo Upload Dropzone, Active Tab, Load Customer │
+│ Workflow     │ `#2563EB` │ Photo Upload Dropzone, Active Tab, Load Customer │
 ├──────────────┼───────────┼──────────────────────────────────────────────────┤
-│ 🟠 Review    │ `#D97706` │ Moderate DPI Warning (WhatsApp soft photo),      │
+│ Review       │ `#D97706` │ Moderate DPI Warning (WhatsApp soft photo),      │
 │              │           │ Pending Approval, Paper Low Alert                │
 ├──────────────┼───────────┼──────────────────────────────────────────────────┤
-│ 🔴 Attention │ `#DC2626` │ Paper Jam Alert, Blurry Photo Modal, Disconnected│
+│ Attention    │ `#DC2626` │ Paper Jam Alert, Blurry Photo Modal, Disconnected│
 ├──────────────┼───────────┼──────────────────────────────────────────────────┤
-│ ⚪ Neutral   │ `#F8FAFC` │ Background Slate, Crisp Card Containers          │
+│ Neutral      │ `#F8FAFC` │ Background Slate, Crisp Card Containers          │
 └──────────────┴───────────┴──────────────────────────────────────────────────┘
 ```
 
@@ -100,17 +100,17 @@ Replaces technical resolution numbers with a clear 3-tier traffic light:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 🟢 CRISP & CLEAR (Ready to Print)                                           │
+│ [CRISP & CLEAR] (Ready to Print)                                            │
 │ "Great quality photo! Perfect for passport and official IDs."               │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 🟡 SLIGHTLY SOFT (WhatsApp Photo)                                           │
+│ [SLIGHTLY SOFT] (WhatsApp Photo)                                            │
 │ "Photo was sent via Messenger/WhatsApp. OK for student ID, but slightly soft"│
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 🔴 TOO BLURRY (Action Required)                                             │
+│ [TOO BLURRY] (Action Required)                                              │
 │ "Photo is too small or blurry. Please ask customer to upload original file" │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -121,7 +121,7 @@ Replaces technical resolution numbers with a clear 3-tier traffic light:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 💵 TOTAL BILL: ₱40.00                                                       │
+│ TOTAL BILL: ₱40.00                                                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ QUICK CASH TENDER:                                                          │
 │ [ ₱50 ]   [ ₱100 ]   [ ₱200 ]   [ ₱500 ]   [ ₱1000 ]   [ Exact: ₱40 ]       │
@@ -131,8 +131,9 @@ Replaces technical resolution numbers with a clear 3-tier traffic light:
 │                      ₱ 60.00                                                │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ [ ✅ COMPLETE & PRINT RECEIPT ]                      [ ❌ CANCEL ]           │
+│ [ COMPLETE & PRINT RECEIPT ]                         [ CANCEL ]              │
 └─────────────────────────────────────────────────────────────────────────────┘
+
 ```
 
 ---
@@ -152,9 +153,9 @@ To keep the mother informed without requiring her to constantly stare at the scr
 
 ## 6. Fail-Safe Guardrails & Error Prevention
 
-1. **Persistent Undo Button**: Floating in the Layout Studio at all times (`[ ↺ Undo ]`).
+1. **Persistent Undo Button**: Floating in the Layout Studio at all times (`[ Undo ]`).
 2. **Hold-to-Delete Protection**: Destructive actions (like canceling an active order or clearing the queue) require a **1-second hold** rather than an instant single click.
-3. **Automatic Print Confirmation**: Before physical printing begins, a large modal displays the final 4R sheet thumbnail with a giant green **`[ 🖨️ CONFIRM PRINT ]`** button.
+3. **Automatic Print Confirmation**: Before physical printing begins, a large modal displays the final 4R sheet thumbnail with a giant green **`[ CONFIRM PRINT ]`** button.
 4. **1-Click Jam Recovery**: If a paper jam occurs, the UI displays a simple guide: *"1. Open printer cover and remove paper. 2. Tap [Resume Print]"*.
 
 ---
@@ -162,7 +163,7 @@ To keep the mother informed without requiring her to constantly stare at the scr
 ## 7. Mobile & Tablet Responsive Layout (Counter Operation)
 
 When accessed from an iPad, Android tablet, or smartphone over the shop's Wi-Fi:
-* **Sticky Bottom Action Bar**: The primary action button (e.g. `[ 🖨️ PRINT NOW ]`) is anchored to the bottom of the screen with a 64px height.
+* **Sticky Bottom Action Bar**: The primary action button (e.g. `[ PRINT NOW ]`) is anchored to the bottom of the screen with a 64px height.
 * **Touch-Optimized Sliders**: Sliders have large $32\text{px}$ grab thumbs for easy finger adjustment.
 * **Zero Accidental Pinch-Zoom**: Meta viewport locks the web interface:
   ```html

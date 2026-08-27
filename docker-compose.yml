@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # ==============================================================================
+  # HomePrint OS — Primary Print Shop Service
+  # ==============================================================================
+  homeprint:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: homeprint:latest
+    container_name: homeprint
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_PATH=/data/homeprint.sqlite
+      # Optional: Explicit IP of HP Smart Tank 670 on your local Wi-Fi
+      # - HP_PRINTER_IP=192.168.1.50
+    volumes:
+      # Persistent SQLite database, customer uploads & cache on external SSD (/mnt/storage/homeprint_os)
+      - ${DATA_PATH:-/mnt/storage/homeprint_os/data}:/data
+      # Optional: Share host CUPS daemon socket if CUPS runs on host
+      - /var/run/cups:/var/run/cups:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - homelab-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/operator/printers/scan"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ==============================================================================
+  # Optional: Cloudflare Tunnel (For secure, static QR counter drops over 4G/5G)
+  # ==============================================================================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: homeprint-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    networks:
+      - homelab-net
+    profiles:
+      - tunnel
+
+networks:
+  homelab-net:
+    driver: bridge

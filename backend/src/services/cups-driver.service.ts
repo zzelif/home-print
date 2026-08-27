@@ -50,7 +50,18 @@ export class CupsDriverService {
   async getActivePrinterName(): Promise<string> {
     const db = getDatabase();
     const row = db.prepare("SELECT value FROM system_settings WHERE key = 'default_printer_name'").get() as { value: string } | undefined;
-    return row ? row.value : 'HP_Smart_Tank_670';
+    if (row && row.value) return row.value;
+
+    if (process.platform !== 'win32') {
+      try {
+        const { stdout } = await execAsync('lpstat -d');
+        const match = stdout.match(/system default destination:\s*(.+)$/i);
+        if (match && match[1].trim()) {
+          return match[1].trim();
+        }
+      } catch {}
+    }
+    return 'Default_Printer';
   }
 
   /**

@@ -16,12 +16,12 @@ HomePrint OS is designed specifically for non-technical counter operators (the s
 Evaluate every frontend view and component against these four non-negotiable rules:
 
 ### Rule 1: Zero Technical Jargon
-- ❌ **Prohibited**: `DPI`, `PPD`, `CUPS`, `PostScript`, `Spooler`, `Baud Rate`, `MIME Type`, `Hex`, `Socket 9100`.
-- ✅ **Required**: Plain language descriptive badges:
-  - 🟢 **Crisp & Clear** (Ready for official ID)
-  - 🟡 **Slightly Soft** (WhatsApp/Messenger photo)
-  - 🔴 **Too Blurry** (Ask customer for original)
-  - 🟢 **Printer Ready** / 🔴 **Printer Offline (Plug in USB cable)**
+- **Prohibited**: `DPI`, `PPD`, `CUPS`, `PostScript`, `Spooler`, `Baud Rate`, `MIME Type`, `Hex`, `Socket 9100`.
+- **Required**: Plain language descriptive badges:
+  - **Crisp & Clear** (Ready for official ID)
+  - **Slightly Soft** (WhatsApp/Messenger photo)
+  - **Too Blurry** (Ask customer for original)
+  - **Printer Ready** / **Printer Offline (Plug in USB cable)**
 
 ### Rule 2: Giant Touch Targets
 - All primary buttons (e.g. `[ PRINT NOW ]`, `[ Checkout ]`, `[ New Rush ID ]`) must have at least **56px touch target height** (`py-3.5` or `h-14`) with bold text.
@@ -34,7 +34,7 @@ Evaluate every frontend view and component against these four non-negotiable rul
 ### Rule 4: Visual Preset Recognition & Live Canvas Parity
 - Show miniature visual layout diagrams for presets (`Set 1`, `Set 2`, `Set 3`, `Passport`) rather than abstract dimensional descriptions.
 - The 4R canvas preview must render the exact layout coordinates for all presets (`SET_1`, `SET_2`, `SET_3`, `SET_4`, and `POLAROID`).
-- Prominently display the DPI Traffic Light badge (🟢 Crisp & Clear / 🟡 Slightly Soft / 🔴 Too Blurry) next to the customer photo dropzone.
+- Prominently display the DPI Traffic Light badge (*Crisp & Clear* / *Slightly Soft* / *Too Blurry*) next to the customer photo dropzone.
 
 ### Rule 5: Multi-Device Responsive Viewports (Mobile & Tablet)
 - Viewport must be locked against accidental double-tap zoom: `user-scalable=no`.

@@ -258,51 +258,113 @@ export class PrinterDiscoveryService {
     } else {
       // Linux / CUPS Discovery
       try {
-        const { stdout: lpinfoOut } = await execAsync('lpinfo -v');
-        const lines = lpinfoOut.split('\n');
+        const seenNames = new Set<string>();
 
-        for (const line of lines) {
-          const match = line.match(/^(\w+)\s+(.+)$/);
-          if (!match) continue;
-          const [, , uri] = match;
+        // 1. Inspect configured CUPS queues
+        try {
+          const { stdout: lpstatOut } = await execAsync('lpstat -v');
+          const lines = lpstatOut.split('\n');
+          for (const line of lines) {
+            const match = line.match(/^device for ([^:]+):\s+(.+)$/i);
+            if (match) {
+              const name = match[1].trim();
+              const uri = match[2].trim();
+              seenNames.add(name);
 
-          if (uri.startsWith('usb://') || uri.startsWith('hp:/usb/')) {
-            const nameMatch = uri.match(/usb:\/\/([^/]+)\/([^?]+)/) || uri.match(/hp:\/usb\/([^?]+)/);
-            const name = nameMatch ? decodeURIComponent(nameMatch[2] || nameMatch[1]).replace(/_/g, ' ') : 'HP USB Printer';
-            const cleanId = name.replace(/\s+/g, '_');
-            const isPresent = presentUsbDevices.size > 0;
-            printers.push({
-              id: cleanId,
-              name,
-              makeAndModel: 'HP Smart Tank / Direct USB Driver',
-              connectionType: 'USB',
-              uri,
-              ipAddress: null,
-              portName: 'USB Device Bus',
-              status: isPresent ? 'ONLINE' : 'DISCONNECTED',
-              isDefault: false,
-              isVirtual: false,
-            });
-          } else if (uri.startsWith('ipp://') || uri.startsWith('socket://') || uri.startsWith('dnssd://') || uri.startsWith('hp:/net/')) {
-            const ipMatch = uri.match(/:\/\/([^:/]+)/);
-            const ipAddress = ipMatch ? ipMatch[1] : null;
-            const name = `HP Smart Tank 670 (${ipAddress || 'Wi-Fi'})`;
-            const cleanId = `net_${ipAddress || 'printer'}`.replace(/\./g, '_');
-            const isOnline = ipAddress ? await this.probeNetworkPrinter(ipAddress) : false;
-            printers.push({
-              id: cleanId,
-              name,
-              makeAndModel: 'HP Smart Tank 670 (Wi-Fi / IPP)',
-              connectionType: 'WIFI_NETWORK',
-              uri,
-              ipAddress,
-              portName: ipAddress || 'Network IPP',
-              status: isOnline ? 'ONLINE' : 'OFFLINE',
-              isDefault: false,
-              isVirtual: false,
-            });
+              const isUsb = uri.startsWith('usb://') || uri.startsWith('hp:/usb/');
+              const isNet = uri.startsWith('ipp://') || uri.startsWith('socket://') || uri.startsWith('http://') || uri.startsWith('hp:/net/') || uri.startsWith('dnssd://');
+
+              let ipAddress: string | null = null;
+              const ipMatch = uri.match(/:\/\/([^:/]+)/);
+              if (ipMatch && (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ipMatch[1]) || ipMatch[1].includes('.'))) {
+                ipAddress = ipMatch[1];
+              }
+
+              let status: DiscoveredPrinter['status'] = 'ONLINE';
+              if (isNet && ipAddress) {
+                const reachable = await this.probeNetworkPrinter(ipAddress);
+                status = reachable ? 'ONLINE' : 'OFFLINE';
+              } else if (isUsb) {
+                status = presentUsbDevices.size > 0 ? 'ONLINE' : 'DISCONNECTED';
+              }
+
+              printers.push({
+                id: name.replace(/\s+/g, '_'),
+                name,
+                makeAndModel: name.replace(/_/g, ' '),
+                connectionType: isUsb ? 'USB' : (isNet ? 'WIFI_NETWORK' : 'IPP'),
+                uri,
+                ipAddress,
+                portName: ipAddress || (isUsb ? 'USB Device Bus' : 'CUPS Queue'),
+                status,
+                isDefault: false,
+                isVirtual: false,
+              });
+            }
           }
-        }
+        } catch {}
+
+        // 2. Discover available devices via lpinfo -v
+        try {
+          const { stdout: lpinfoOut } = await execAsync('lpinfo -v');
+          const lines = lpinfoOut.split('\n');
+
+          for (const line of lines) {
+            const match = line.match(/^(\w+)\s+(.+)$/);
+            if (!match) continue;
+            const [, , uri] = match;
+
+            if (uri.startsWith('usb://') || uri.startsWith('hp:/usb/')) {
+              const nameMatch = uri.match(/usb:\/\/([^/]+)\/([^?]+)/) || uri.match(/hp:\/usb\/([^?]+)/);
+              const name = nameMatch ? decodeURIComponent(nameMatch[2] || nameMatch[1]).replace(/_/g, ' ') : 'HP USB Printer';
+              if (seenNames.has(name)) continue;
+              seenNames.add(name);
+
+              const cleanId = name.replace(/\s+/g, '_');
+              const isPresent = presentUsbDevices.size > 0;
+              printers.push({
+                id: cleanId,
+                name,
+                makeAndModel: 'HP Smart Tank / Direct USB Driver',
+                connectionType: 'USB',
+                uri,
+                ipAddress: null,
+                portName: 'USB Device Bus',
+                status: isPresent ? 'ONLINE' : 'DISCONNECTED',
+                isDefault: false,
+                isVirtual: false,
+              });
+            } else if (uri.startsWith('ipp://') || uri.startsWith('socket://') || uri.startsWith('dnssd://') || uri.startsWith('hp:/net/') || uri.startsWith('http://')) {
+              const ipMatch = uri.match(/:\/\/([^:/]+)/);
+              const ipAddress = ipMatch ? ipMatch[1] : null;
+
+              // Dynamically extract printer model/name from URI
+              let detectedName = ipAddress ? `Network Printer (${ipAddress})` : 'Network IPP Printer';
+              const nameMatch = uri.match(/dnssd:\/\/([^?]+)/) || uri.match(/hp:\/net\/([^?]+)/);
+              if (nameMatch) {
+                detectedName = decodeURIComponent(nameMatch[1]).replace(/_/g, ' ');
+              }
+
+              if (seenNames.has(detectedName)) continue;
+              seenNames.add(detectedName);
+
+              const cleanId = `net_${detectedName.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+              const isOnline = ipAddress ? await this.probeNetworkPrinter(ipAddress) : false;
+              printers.push({
+                id: cleanId,
+                name: detectedName,
+                makeAndModel: detectedName,
+                connectionType: 'WIFI_NETWORK',
+                uri,
+                ipAddress,
+                portName: ipAddress || 'Network IPP',
+                status: isOnline ? 'ONLINE' : 'OFFLINE',
+                isDefault: false,
+                isVirtual: false,
+              });
+            }
+          }
+        } catch {}
       } catch (err) {
         console.warn('Linux discovery error:', err);
       }

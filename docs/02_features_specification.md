@@ -34,16 +34,16 @@ HomePrint OS achieves complete parity with commercial SaaS systems (such as Prin
 * **Role**: Primary command center for the mother, presenting a clean, high-contrast, at-a-glance summary.
 * **Key Components**:
   1. **Printer Health Banner**:
-     - 🟢 **Printer Ready**: Large green banner showing ink levels (Black, Cyan, Magenta, Yellow) and paper status.
-     - 🟡 **Add Paper / Ink Low**: Warning banner with audio chime when paper tray is empty or ink is below 15%.
-     - 🔴 **Printer Offline**: Red alert indicating disconnected USB cable or power off.
+     - **Printer Ready**: Large green banner showing ink levels (Black, Cyan, Magenta, Yellow) and paper status.
+     - **Add Paper / Ink Low**: Warning banner with audio chime when paper tray is empty or ink is below 15%.
+     - **Printer Offline**: Red alert indicating disconnected USB cable or power off.
   2. **Fast Action Tiles** (Large $200\times 180\text{px}$ touch targets):
-     - `[ 📸 New Rush ID ]` $\to$ Opens Layout Studio.
-     - `[ 📄 Print Document ]` $\to$ Opens Document Ingestion & Page Range Selector.
-     - `[ 📥 Customer Inbox (Live Count) ]` $\to$ Shows pending QR uploads.
-     - `[ 💵 Cash Register ]` $\to$ Opens POS change drawer.
+     - `[ New Rush ID ]` $\to$ Opens Layout Studio.
+     - `[ Print Document ]` $\to$ Opens Document Ingestion & Page Range Selector.
+     - `[ Customer Inbox (Live Count) ]` $\to$ Shows pending QR uploads.
+     - `[ Cash Register ]` $\to$ Opens POS change drawer.
   3. **Live Job Queue**:
-     - Real-time list of active jobs with color-coded status badges: `🟡 Ingested`, `🔵 In Studio`, `🟣 Spooling`, `🟢 Printing (Page 1/2)`, `⚪ Completed`, `✅ Paid`.
+     - Real-time list of active jobs with color-coded status badges: `[Ingested]`, `[In Studio]`, `[Spooling]`, `[Printing]`, `[Completed]`, `[Paid]`.
   4. **Daily Sales Tally**:
      - Today's Gross Revenue (₱), Estimated Net Profit (₱), and Jobs Completed count.
 
@@ -89,7 +89,7 @@ The **Layout Studio** is the most visually rich tool in HomePrint OS, replicatin
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│  ✂️ HomePrint Layout Studio — RUSH ID MODE                       [Export PDF] [🖨️ PRINT]│
+│  HomePrint Layout Studio — RUSH ID MODE                          [Export PDF] [PRINT]  │
 ├───────────────────┬────────────────────────────────────────────────────────────────────┤
 │ ┌───────────────┐ │  ┌───────────────────────────────────────────────────────────────┐  │
 │ │   [UPLOAD]    │ │  │                                                               │  │
@@ -136,9 +136,9 @@ The **Layout Studio** is the most visually rich tool in HomePrint OS, replicatin
 * **Zero-Gap Mode Toggle**: Collapses all spacing between photos so the operator can slice them with a guillotine paper cutter in single continuous cuts.
 * **Sublimation Mirror Flip**: 1-click horizontal reflection for heat transfer printing (mugs, t-shirts, caps).
 * **DPI Quality Traffic Light**:
-  - 🟢 **Crisp** ($\ge 250\text{ DPI}$): Ready for official IDs.
-  - 🟡 **WhatsApp Compressed** ($150–250\text{ DPI}$): Soft warning.
-  - 🔴 **Too Blurry** ($<150\text{ DPI}$): Prompt asking for original photo.
+  - **Crisp** ($\ge 250\text{ DPI}$): Ready for official IDs.
+  - **WhatsApp Compressed** ($150–250\text{ DPI}$): Soft warning.
+  - **Too Blurry** ($<150\text{ DPI}$): Prompt asking for original photo.
 
 ---
 
@@ -147,28 +147,28 @@ The **Layout Studio** is the most visually rich tool in HomePrint OS, replicatin
 Replicating and extending PrintBoss's Advanced Costing module to ensure complete financial control:
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ 🧮 PRODUCT COSTING & PROFIT ENGINE                             Product: 4R Rush ID Set │
-├─────────────────────────┬──────────────────────────┬───────────────────────────────────┤
-│ 🔵 MATERIAL COST        │ 🟠 OPERATION COST        │ 👤 LABOR COST                     │
-│ • Glossy Paper 230g: ₱2.50│ • Electricity:     ₱1.00 │ • Rate/Hour: ₱90.00               │
-│ • Ink Cost (est):   ₱3.50│ • Maintenance:     ₱2.00 │ • Time:      5 Minutes            │
-│ • Plastic Sleeve:   ₱1.00│ • Tools/Deprec:    ₱1.00 │                                   │
-│ Total Material:    ₱7.00│ Total Operation:   ₱4.00 │ Labor Total: ₱7.50                │
-├─────────────────────────┴──────────────────────────┴───────────────────────────────────┤
-│ 🟢 BASE COST SUMMARY: Material (₱7.00) + Operation (₱4.00) + Labor (₱7.50) = ₱18.50    │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 🟣 MARGIN MATRIX                                                                       │
-│  Base Cost     Margin (%)     Profit (₱)     Selling Price                             │
-│  ₱18.50         25%            +₱4.63         ₱23.13                                   │
-│  ₱18.50         50%            +₱9.25         ₱27.75                                   │
-│  ₱18.50         75%            +₱13.88        ₱32.38                                   │
-│  ₱18.50         100%           +₱18.50        ₱37.00                                   │
-│  ₱18.50         150%           +₱27.75        ₱46.25                                   │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ 🎯 TARGET SELLING PRICE: [=== Slider: 120% ===] ➔ Recommended Price: ₱40.00           │
-│ 🏷️ BULK DISCOUNT: Qty: [ 5 ]  Discount: [ ₱10.00 ] ➔ Final Total: ₱190.00              │
-└────────────────────────────────────────────────────────────────────────────────────────┘
++----------------------------------------------------------------------------------------+
+| PRODUCT COSTING & PROFIT ENGINE                                Product: 4R Rush ID Set |
++-------------------------+--------------------------+-----------------------------------+
+| MATERIAL COST           | OPERATION COST           | LABOR COST                        |
+| • Glossy Paper 230g: ₱2.50| • Electricity:     ₱1.00 | • Rate/Hour: ₱90.00               |
+| • Ink Cost (est):   ₱3.50| • Maintenance:     ₱2.00 | • Time:      5 Minutes            |
+| • Plastic Sleeve:   ₱1.00| • Tools/Deprec:    ₱1.00 |                                   |
+| Total Material:    ₱7.00| Total Operation:   ₱4.00 | Labor Total: ₱7.50                |
++-------------------------+--------------------------+-----------------------------------+
+| BASE COST SUMMARY: Material (₱7.00) + Operation (₱4.00) + Labor (₱7.50) = ₱18.50       |
++----------------------------------------------------------------------------------------+
+| MARGIN MATRIX                                                                          |
+|  Base Cost     Margin (%)     Profit (₱)     Selling Price                             |
+|  ₱18.50         25%            +₱4.63         ₱23.13                                   |
+|  ₱18.50         50%            +₱9.25         ₱27.75                                   |
+|  ₱18.50         75%            +₱13.88        ₱32.38                                   |
+|  ₱18.50         100%           +₱18.50        ₱37.00                                   |
+|  ₱18.50         150%           +₱27.75        ₱46.25                                   |
++----------------------------------------------------------------------------------------+
+| TARGET SELLING PRICE: [=== Slider: 120% ===] -> Recommended Price: ₱40.00              |
+| BULK DISCOUNT: Qty: [ 5 ]  Discount: [ ₱10.00 ] -> Final Total: ₱190.00                |
++----------------------------------------------------------------------------------------+
 ```
 
 ### 4.1 Costing Mathematical Formulas

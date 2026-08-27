@@ -73,7 +73,7 @@ HomePrint OS operates as a self-contained, offline-first print shop management s
   7. `GatedPurgeNode` — Ephemeral file cleanup respecting the 1-hour privacy grace period.
 
 ### 2.5 Mother-Centric Ergonomics & Accessibility
-- **Zero Jargon**: Plain language status banners (🟢 *Printer Ready*, 🟢 *Crisp & Clear*, 🔴 *Paper Jam or Disconnected Cable*).
+- **Zero Jargon**: Plain language status banners (*Printer Ready*, *Crisp & Clear*, *Paper Jam or Disconnected Cable*).
 - **Giant Touch Targets (56px+)**: Effortless tapping on touchscreens, tablets, and phones over local Wi-Fi.
 - **48pt Bold High-Contrast POS Display**: Real-time change calculation with instant quick-tender buttons.
 - **Visual Photo Layout Cards**: Instant recognition of Rush ID presets (`Set 1`, `Set 2`, `Set 3`, `Set 4`, `Polaroid`).
@@ -96,7 +96,9 @@ home-print/
 │   ├── 05_testing_and_qa_plan.md
 │   ├── 06_implementation_review.md
 │   ├── 07_gaps_and_risks.md
-│   └── 08_steps_thereafter_roadmap.md
+│   ├── 08_steps_thereafter_roadmap.md
+│   ├── 09_raspberry_pi_migration_runbook.md
+│   └── 10_docker_and_homelab_integration.md
 ├── backend/                      # Fastify + TypeScript Backend
 │   ├── src/
 │   │   ├── config/               # Pricing tier and threshold configs
@@ -136,7 +138,7 @@ home-print/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/danle/home-print.git
+git clone https://github.com/your-org/home-print.git
 cd home-print
 ```
 

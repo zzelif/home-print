@@ -6,8 +6,8 @@ export class DatabaseManager {
   private db: Database.Database;
 
   constructor(dbPath?: string) {
-    // Explicit fixed path in project root regardless of CWD
-    const finalPath = dbPath || path.resolve(__dirname, '../../../homeprint.sqlite');
+    // Explicit fixed path in project root or custom DATABASE_PATH environment variable
+    const finalPath = dbPath || process.env.DATABASE_PATH || path.resolve(__dirname, '../../../homeprint.sqlite');
     const dir = path.dirname(finalPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });

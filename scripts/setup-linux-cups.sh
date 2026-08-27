@@ -67,8 +67,9 @@ EOF
 chmod +x ~/Desktop/HomePrint-Shop.desktop
 
 echo "=============================================================================="
-echo "✅ Setup Complete! HomePrint OS is ready."
-echo "• Desktop is in standard mode (LibreOffice available for presentations)."
-echo "• Launch HomePrint via Desktop Icon or: http://localhost:5000"
-echo "• Customer QR Drop accessible on LAN: http://$(hostname -I | awk '{print $1}'):5000/drop"
+echo "Setup Complete! HomePrint OS is ready."
+echo "Desktop is in standard mode (LibreOffice available for presentations)."
+echo "Launch HomePrint via Desktop Icon or: http://localhost:5000"
+echo "Customer QR Drop accessible on LAN: http://$(hostname -I | awk '{print $1}'):5000/drop"
 echo "=============================================================================="
+

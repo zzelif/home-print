@@ -76,7 +76,7 @@ HomePrint OS is structured into a **5-Phase, 15-Day Implementation Roadmap**. Ea
   - **Set 3**: $6\times 1.5\times 1.5" + 4\times 1\times 1"$ (Combo Package).
   - **Set 4**: $6\times 35\times 45\text{ mm}$ (Passport Specification).
   - **Polaroid Mini**: $2\times 3"$ with customizable text footer.
-- Build the **DPI Traffic Light component** (🟢 Crisp $\ge 250\text{ DPI}$, 🟡 Soft $150–250\text{ DPI}$, 🔴 Blurry $<150\text{ DPI}$).
+- Build the **DPI Traffic Light component** ([CRISP] Crisp $\ge 250\text{ DPI}$, [SOFT] Soft $150–250\text{ DPI}$, [BLURRY] Blurry $<150\text{ DPI}$).
 
 #### Day 7: Preflight Quality Gate & Layout Integration
 - Connect frontend canvas crop coordinates to backend PDF builder.
