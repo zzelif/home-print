@@ -7,8 +7,10 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+backend/dist/
+frontend/dist/
 
-# SQLite Database & Storage
+# SQLite Database & Runtime Storage
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
@@ -17,6 +19,19 @@ build/
 /tmp/homeprint_*
 uploads/
 cache/
+backend/uploads/
+backend/cache/
+
+# Test & E2E Artifacts
+test-results/
+frontend/test-results/
+playwright-report/
+frontend/playwright-report/
+blob-report/
+.last-run.json
+
+# Scratch & Development Artifacts
+scratch/
 
 # Environment Variables
 .env
@@ -35,7 +50,7 @@ pnpm-debug.log*
 Thumbs.db
 desktop.ini
 
-# IDE
+# IDE & Editor Files
 .idea/
 .vscode/
 *.swp
