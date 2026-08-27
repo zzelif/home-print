@@ -24,7 +24,8 @@ jobs:
       - name: Install System Print & Office Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cups libcups2-dev poppler-utils libreoffice-core-nogpu libreoffice-writer
+          sudo apt-get install -y cups libcups2-dev poppler-utils libreoffice-writer libreoffice-impress
+
 
       - name: Install Backend Dependencies
         working-directory: ./backend
