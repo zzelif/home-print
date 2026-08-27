@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-qa:
-    name: Backend Lint, Typecheck & Test
+    name: Backend Lint, Typecheck & Vitest Suite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -24,7 +24,7 @@ jobs:
       - name: Install System Print & Office Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cups libcups2-dev poppler-utils
+          sudo apt-get install -y cups libcups2-dev poppler-utils libreoffice-core-nogpu libreoffice-writer
 
       - name: Install Backend Dependencies
         working-directory: ./backend
@@ -34,12 +34,12 @@ jobs:
         working-directory: ./backend
         run: npx tsc --noEmit
 
-      - name: Run Automated Graph & Math Tests
+      - name: Run Automated Vitest Test Suite
         working-directory: ./backend
-        run: npm test || echo "Tests will run once test runner configured"
+        run: npm test
 
   frontend-qa:
-    name: Frontend Lint, Typecheck & Build
+    name: Frontend Lint, Typecheck & Production Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -56,6 +56,7 @@ jobs:
         working-directory: ./frontend
         run: npm ci || npm install
 
-      - name: Run Frontend Build
+      - name: Run Frontend Production Build
         working-directory: ./frontend
-        run: npm run build || echo "Scaffolding frontend build"
+        run: npm run build
+
