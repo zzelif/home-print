@@ -38,14 +38,19 @@ RUN npm run build
 # ------------------------------------------------------------------------------
 FROM node:20-bookworm-slim AS runner
 
-# Install headless LibreOffice, CUPS client, Poppler, networking tools, and fonts
+# Install headless LibreOffice, full CUPS daemon & drivers, HPLIP, Poppler, networking tools, and fonts
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    cups \
+    cups-client \
+    cups-bsd \
+    cups-filters \
+    cups-ipp-utils \
+    hplip \
+    printer-driver-hpcups \
     libreoffice-writer-nogui \
     libreoffice-impress-nogui \
     libreoffice-calc-nogui \
     poppler-utils \
-    cups-client \
-    cups-bsd \
     iputils-ping \
     net-tools \
     iproute2 \
@@ -56,6 +61,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sqlite3 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Configure CUPS permissions and allow local socket printing
+RUN usermod -aG lp,lpadmin root && \
+    mkdir -p /var/run/cups /var/spool/cups /etc/cups && \
+    sed -i 's/Listen localhost:631/Listen 0.0.0.0:631/' /etc/cups/cupsd.conf 2>/dev/null || true
 
 WORKDIR /app
 
@@ -83,4 +93,5 @@ EXPOSE 5000
 VOLUME ["/data"]
 
 WORKDIR /app/backend
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "service cups start && exec node dist/server.js"]
+

@@ -64,24 +64,77 @@ export class PrinterDiscoveryService {
   }
 
   /**
-   * Scans local ARP table to find all dynamic active devices and MAC addresses on the LAN.
+   * Scans local ARP table, ip neigh, and active subnet to find all network printers.
    */
   async getLiveLanDevices(): Promise<Array<{ ip: string; mac: string }>> {
     const devices: Array<{ ip: string; mac: string }> = [];
+    const seenIps = new Set<string>();
+
+    // 1. Check ARP on Windows & Linux
     try {
       const { stdout } = await execAsync('arp -a');
       const lines = stdout.split('\n');
       for (const line of lines) {
-        const match = line.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+([0-9a-fA-F-]+)\s+dynamic/i);
-        if (match) {
-          const ip = match[1].trim();
-          const mac = match[2].toLowerCase().replace(/[:-]/g, '').trim();
-          if (!ip.startsWith('127.') && !ip.startsWith('169.254.') && !ip.endsWith('.255')) {
+        // Windows format: 192.168.1.60  74-da-78-28-c3-79  dynamic
+        // Linux format: ? (192.168.1.60) at 74:da:78:28:c3:79 [ether] on eth0
+        const winMatch = line.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+([0-9a-fA-F-]+)\s+dynamic/i);
+        const linuxMatch = line.match(/\(([\d.]+)\)\s+at\s+([0-9a-fA-F:]+)/i);
+
+        const ip = winMatch ? winMatch[1].trim() : (linuxMatch ? linuxMatch[1].trim() : null);
+        const rawMac = winMatch ? winMatch[2] : (linuxMatch ? linuxMatch[2] : null);
+
+        if (ip && rawMac && !seenIps.has(ip)) {
+          const mac = rawMac.toLowerCase().replace(/[:-]/g, '').trim();
+          if (!ip.startsWith('127.') && !ip.startsWith('169.254.') && !ip.endsWith('.255') && !ip.endsWith('.0')) {
+            seenIps.add(ip);
             devices.push({ ip, mac });
           }
         }
       }
     } catch {}
+
+    // 2. Check Linux `ip neigh`
+    if (process.platform !== 'win32') {
+      try {
+        const { stdout } = await execAsync('ip neigh show');
+        for (const line of stdout.split('\n')) {
+          const match = line.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+.*lladdr\s+([0-9a-fA-F:]+)/i);
+          if (match) {
+            const ip = match[1].trim();
+            const mac = match[2].toLowerCase().replace(/[:-]/g, '').trim();
+            if (!seenIps.has(ip) && !ip.startsWith('127.') && !ip.startsWith('169.254.')) {
+              seenIps.add(ip);
+              devices.push({ ip, mac });
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // 3. Fast Parallel Subnet Sweep across ports 9100 and 631 (Sweep /24 subnet)
+    try {
+      const probeIps: string[] = [];
+      for (let i = 1; i <= 254; i++) {
+        const ip = `192.168.1.${i}`;
+        if (!seenIps.has(ip)) {
+          probeIps.push(ip);
+        }
+      }
+
+      // Sweep in parallel chunks of 40
+      const chunkSize = 40;
+      for (let i = 0; i < probeIps.length; i += chunkSize) {
+        const chunk = probeIps.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(async (ip) => {
+          const isPrinter = await this.probeNetworkPrinter(ip);
+          if (isPrinter && !seenIps.has(ip)) {
+            seenIps.add(ip);
+            devices.push({ ip, mac: 'dynamic_printer' });
+          }
+        }));
+      }
+    } catch {}
+
     return devices;
   }
 

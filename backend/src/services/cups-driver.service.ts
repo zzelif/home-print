@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import net from 'net';
 import { getDatabase } from '../db/database';
 
 import { PrinterDiscoveryService } from './printer-discovery.service';
@@ -129,7 +130,33 @@ export class CupsDriverService {
       }
     }
 
-    // Linux CUPS dispatch
+    // Linux Print Dispatch: Standard CUPS Queue via IPP Everywhere / HPLIP with Direct Socket Fallback
+    // 1. Resolve target IP address if printer is a network printer
+    let targetIp: string | null = null;
+    const ipMatch = printer.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+    if (ipMatch) {
+      targetIp = ipMatch[1];
+    } else {
+      const db = getDatabase();
+      const manualRow = db.prepare("SELECT ip_address FROM manual_printers WHERE name = ? OR id = ?").get(printer, printer) as { ip_address: string } | undefined;
+      if (manualRow) {
+        targetIp = manualRow.ip_address;
+      }
+    }
+
+    const cleanQueueName = targetIp 
+      ? `HP_Smart_Tank_${targetIp.replace(/\./g, '_')}`
+      : printer.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // 2. Ensure CUPS queue is registered in CUPS daemon
+    if (targetIp) {
+      try {
+        await execAsync(`lpadmin -p "${cleanQueueName}" -E -v "ipp://${targetIp}/ipp/print" -m everywhere 2>/dev/null || lpadmin -p "${cleanQueueName}" -E -v "ipp://${targetIp}/ipp/print" -m raw 2>/dev/null || true`);
+        await execAsync(`cupsenable "${cleanQueueName}" 2>/dev/null || true`);
+        await execAsync(`cupsaccept "${cleanQueueName}" 2>/dev/null || true`);
+      } catch {}
+    }
+
     let mediaArg = 'media=A4';
     if (options.paperSize === '4R') {
       mediaArg = 'media=Custom.4x6in.Borderless';
@@ -148,15 +175,48 @@ export class CupsDriverService {
 
     const duplexArg = options.isDuplex ? '-o sides=two-sided-long-edge' : '-o sides=one-sided';
     const pageRangeArg = options.pageRange && options.pageRange !== 'all' ? `-o page-ranges=${options.pageRange}` : '';
-    const command = `lp -d "${printer}" -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} ${pageRangeArg} "${pdfPath}"`.trim();
 
+    // 3. Dispatch via standard Linux CUPS spooler
     try {
+      const command = `lp -d "${cleanQueueName}" -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} ${pageRangeArg} "${pdfPath}"`.trim();
       const { stdout } = await execAsync(command);
       const match = stdout.match(/request id is ([^\s]+)/);
       const cupsJobId = match ? match[1] : 'JOB_SUBMITTED';
-      return { cupsJobId, message: `Dispatched to CUPS queue ${printer}` };
-    } catch (error: any) {
-      throw new Error(`Failed to dispatch print job to CUPS: ${error.message}`);
+      return { cupsJobId, message: `Dispatched to CUPS queue ${cleanQueueName}` };
+    } catch (cupsErr: any) {
+      console.warn(`CUPS lp command failed (${cupsErr.message}), attempting direct IPP / JetDirect network stream...`);
+
+      // Direct JetDirect (Port 9100) raw socket stream fallback
+      if (targetIp) {
+        try {
+          const pdfBytes = await fs.readFile(pdfPath);
+          await new Promise<void>((resolve, reject) => {
+            const socket = new net.Socket();
+            socket.setTimeout(10000);
+            socket.connect(9100, targetIp!, () => {
+              for (let c = 0; c < copies; c++) {
+                socket.write(pdfBytes);
+              }
+              socket.end();
+              resolve();
+            });
+            socket.on('error', (err) => reject(err));
+            socket.on('timeout', () => {
+              socket.destroy();
+              reject(new Error(`Timeout connecting to ${targetIp}:9100`));
+            });
+          });
+
+          return {
+            cupsJobId: `net_raw_${Date.now()}`,
+            message: `Dispatched directly to ${printer} via Direct Network Print Stream (Port 9100)`,
+          };
+        } catch (netErr: any) {
+          throw new Error(`Print dispatch failed: CUPS error (${cupsErr.message}) and Network Socket error (${netErr.message})`);
+        }
+      }
+
+      throw new Error(`Failed to dispatch print job to CUPS: ${cupsErr.message}`);
     }
   }
 
