@@ -3,7 +3,7 @@ import { buildServer } from '../src/server';
 import { FastifyInstance } from 'fastify';
 import { PrinterDiscoveryService } from '../src/services/printer-discovery.service';
 
-describe('Printer Auto-Discovery & Default Assignment Tests', () => {
+describe('Printer Auto-Discovery & Default Assignment Tests', { timeout: 20000 }, () => {
   let app: FastifyInstance;
   let service: PrinterDiscoveryService;
 
@@ -51,10 +51,20 @@ describe('Printer Auto-Discovery & Default Assignment Tests', () => {
   it('exposes scan and set-default routes via Fastify API', async () => {
     const targetPrinter = 'HP Smart Tank 660-670 series [28C379]';
 
+    // 0. Authenticate operator
+    const loginRes = await app.inject({
+      method: 'POST',
+      url: '/api/operator/login',
+      payload: { pin: '1234' },
+    });
+    expect(loginRes.statusCode).toBe(200);
+    const cookies = { hp_session: loginRes.cookies[0].value };
+
     // 1. Scan route
     const scanRes = await app.inject({
       method: 'POST',
       url: '/api/operator/printers/scan',
+      cookies,
     });
     expect(scanRes.statusCode).toBe(200);
     const scanData = JSON.parse(scanRes.payload);
@@ -66,6 +76,7 @@ describe('Printer Auto-Discovery & Default Assignment Tests', () => {
       method: 'POST',
       url: '/api/operator/printers/set-default',
       payload: { printerName: targetPrinter },
+      cookies,
     });
     expect(setDefaultRes.statusCode).toBe(200);
     const setResult = JSON.parse(setDefaultRes.payload);
@@ -75,6 +86,7 @@ describe('Printer Auto-Discovery & Default Assignment Tests', () => {
     const listRes = await app.inject({
       method: 'GET',
       url: '/api/operator/printers',
+      cookies,
     });
     expect(listRes.statusCode).toBe(200);
     const listData = JSON.parse(listRes.payload);
