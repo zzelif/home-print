@@ -22,7 +22,7 @@ export interface DiscoveredPrinter {
 export class PrinterDiscoveryService {
   private static cachedPrinters: DiscoveredPrinter[] | null = null;
   private static lastScanTime: number = 0;
-  private static readonly CACHE_TTL_MS = 10000; // 10 seconds cache
+  private static readonly CACHE_TTL_MS = 30000; // 30 seconds cache to prevent network thrashing
 
   /**
    * Checks if an IP is a host interface, Docker internal bridge, localhost, or default gateway.
@@ -33,7 +33,7 @@ export class PrinterDiscoveryService {
     if (cleanIp === '127.0.0.1' || cleanIp === 'localhost' || cleanIp.startsWith('127.')) return true;
     // Ignore Docker virtual bridge subnets (172.16.0.0 - 172.31.255.255)
     if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(cleanIp)) return true;
-    // Ignore gateway / broadcast
+    // Ignore gateway / broadcast / network identifiers
     if (cleanIp.endsWith('.1') || cleanIp.endsWith('.255') || cleanIp.endsWith('.0')) return true;
 
     // Ignore Raspberry Pi / Host's own IP addresses
@@ -47,10 +47,10 @@ export class PrinterDiscoveryService {
   }
 
   /**
-   * Quick TCP socket probe to verify if a host is listening on raw print port 9100 (JetDirect) or IPP 631.
-   * Note: Port 80 (HTTP) is deliberately excluded to prevent routers, Docker containers, and web servers from false-matching.
+   * Resilient TCP socket probe to verify if a host is listening on print ports (IPP 631, HTTP EWS 80, JetDirect 9100).
+   * Uses a 1500ms timeout with retry to reliably accommodate Wi-Fi 802.11 DTIM power-save wake latency.
    */
-  async probeNetworkPrinter(host: string): Promise<boolean> {
+  async probeNetworkPrinter(host: string, timeoutMs: number = 1500, maxRetries: number = 1): Promise<boolean> {
     if (!host || host.includes('nul') || host.includes('PORTPROMPT')) {
       return false;
     }
@@ -64,10 +64,10 @@ export class PrinterDiscoveryService {
       return false;
     }
 
-    const checkPort = (port: number) =>
+    const checkPort = (port: number, timeout: number): Promise<boolean> =>
       new Promise<boolean>((resolve) => {
         const socket = new net.Socket();
-        socket.setTimeout(400);
+        socket.setTimeout(timeout);
 
         socket.on('connect', () => {
           socket.destroy();
@@ -87,9 +87,25 @@ export class PrinterDiscoveryService {
         socket.connect(port, cleanHost);
       });
 
-    // Only probe dedicated print ports (Port 9100 Raw JetDirect & Port 631 IPP)
-    const results = await Promise.all([checkPort(9100), checkPort(631)]);
-    return results.some((r) => r === true);
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      // Probe IPP (631), Embedded Web Server (80), and JetDirect (9100)
+      const results = await Promise.all([
+        checkPort(631, timeoutMs),
+        checkPort(80, timeoutMs),
+        checkPort(9100, timeoutMs),
+      ]);
+
+      if (results.some((r) => r === true)) {
+        return true;
+      }
+
+      // Small backoff before single retry if power-save wake packet was required
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -102,7 +118,7 @@ export class PrinterDiscoveryService {
     // Attempt HP Embedded Web Server XML metadata query
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 600);
+      const timeoutId = setTimeout(() => controller.abort(), 1200);
       const res = await fetch(`http://${ip}/DevMgmt/ProductConfigDyn.xml`, { signal: controller.signal });
       clearTimeout(timeoutId);
       if (res.ok) {
@@ -127,9 +143,9 @@ export class PrinterDiscoveryService {
   }
 
   /**
-   * Scans local ARP table, ip neigh, and active subnet to find all network printers.
+   * Scans local ARP table and ip neigh for active network devices without flooding the network.
    */
-  async getLiveLanDevices(): Promise<Array<{ ip: string; mac: string }>> {
+  async getLiveLanDevices(includeSubnetSweep = false): Promise<Array<{ ip: string; mac: string }>> {
     const devices: Array<{ ip: string; mac: string }> = [];
     const seenIps = new Set<string>();
 
@@ -138,8 +154,6 @@ export class PrinterDiscoveryService {
       const { stdout } = await execAsync('arp -a');
       const lines = stdout.split('\n');
       for (const line of lines) {
-        // Windows format: 192.168.1.60  74-da-78-28-c3-79  dynamic
-        // Linux format: ? (192.168.1.60) at 74:da:78:28:c3:79 [ether] on eth0
         const winMatch = line.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+([0-9a-fA-F-]+)\s+dynamic/i);
         const linuxMatch = line.match(/\(([\d.]+)\)\s+at\s+([0-9a-fA-F:]+)/i);
 
@@ -172,29 +186,31 @@ export class PrinterDiscoveryService {
       } catch {}
     }
 
-    // 3. Fast Parallel Subnet Sweep across ports 9100 and 631 (Sweep /24 subnet)
-    try {
-      const probeIps: string[] = [];
-      for (let i = 1; i <= 254; i++) {
-        const ip = `192.168.1.${i}`;
-        if (!seenIps.has(ip) && !this.isIgnoredIp(ip)) {
-          probeIps.push(ip);
-        }
-      }
-
-      // Sweep in parallel chunks of 30
-      const chunkSize = 30;
-      for (let i = 0; i < probeIps.length; i += chunkSize) {
-        const chunk = probeIps.slice(i, i + chunkSize);
-        await Promise.all(chunk.map(async (ip) => {
-          const isPrinter = await this.probeNetworkPrinter(ip);
-          if (isPrinter && !seenIps.has(ip) && !this.isIgnoredIp(ip)) {
-            seenIps.add(ip);
-            devices.push({ ip, mac: 'dynamic_printer' });
+    // 3. Subnet Sweep (ONLY when explicitly requested on manual user scan)
+    if (includeSubnetSweep) {
+      try {
+        const probeIps: string[] = [];
+        for (let i = 2; i <= 254; i++) {
+          const ip = `192.168.1.${i}`;
+          if (!seenIps.has(ip) && !this.isIgnoredIp(ip)) {
+            probeIps.push(ip);
           }
-        }));
-      }
-    } catch {}
+        }
+
+        // Fast parallel chunking
+        const chunkSize = 25;
+        for (let i = 0; i < probeIps.length; i += chunkSize) {
+          const chunk = probeIps.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(async (ip) => {
+            const isPrinter = await this.probeNetworkPrinter(ip, 600, 0);
+            if (isPrinter && !seenIps.has(ip) && !this.isIgnoredIp(ip)) {
+              seenIps.add(ip);
+              devices.push({ ip, mac: 'dynamic_printer' });
+            }
+          }));
+        }
+      } catch {}
+    }
 
     return devices;
   }
@@ -202,7 +218,7 @@ export class PrinterDiscoveryService {
   /**
    * Probes whether USB printers are physically plugged in and present in the hardware bus.
    */
-  private async getPresentUsbPrinters(): Promise<Set<string>> {
+  async getPresentUsbPrinters(): Promise<Set<string>> {
     const presentDevices = new Set<string>();
 
     if (process.platform === 'win32') {
@@ -229,6 +245,56 @@ export class PrinterDiscoveryService {
   }
 
   /**
+   * Fast, targeted reachability check for a specific printer name, IP, or queue.
+   * Avoids network scans entirely for instant status updates.
+   */
+  async checkPrinterReachability(printerNameOrIp: string): Promise<{ isOnline: boolean; ipAddress: string | null }> {
+    const clean = printerNameOrIp.trim();
+
+    // Check if IP is in name
+    const ipMatch = clean.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+    let ip = ipMatch ? ipMatch[1] : null;
+
+    if (!ip) {
+      const db = getDatabase();
+      const manualRow = db.prepare("SELECT ip_address FROM manual_printers WHERE name = ? OR id = ?").get(clean, clean) as { ip_address: string } | undefined;
+      if (manualRow) {
+        ip = manualRow.ip_address;
+      }
+    }
+
+    if (ip) {
+      const isOnline = await this.probeNetworkPrinter(ip, 1500, 1);
+      return { isOnline, ipAddress: ip };
+    }
+
+    // USB / CUPS Queue status
+    if (process.platform !== 'win32') {
+      try {
+        const { stdout } = await execAsync(`lpstat -p "${clean}"`);
+        const isIdleOrPrinting = stdout.includes('idle') || stdout.includes('printing') || stdout.includes('ready');
+        return { isOnline: isIdleOrPrinting, ipAddress: null };
+      } catch {
+        // Queue may not be registered yet, probe USB
+        const usbPrinters = await this.getPresentUsbPrinters();
+        const isPluggedIn = usbPrinters.size > 0;
+        return { isOnline: isPluggedIn, ipAddress: null };
+      }
+    } else {
+      // Windows CIM status
+      try {
+        const psCmd = `powershell -NoProfile -Command "Get-CimInstance Win32_Printer -Filter \\"Name='${clean.replace(/'/g, "''")}'\\" | Select-Object -ExpandProperty WorkOffline"`;
+        const { stdout } = await execAsync(psCmd);
+        const isOffline = stdout.trim().toLowerCase() === 'true';
+        return { isOnline: !isOffline, ipAddress: null };
+      } catch {
+        const usbPrinters = await this.getPresentUsbPrinters();
+        return { isOnline: usbPrinters.size > 0, ipAddress: null };
+      }
+    }
+  }
+
+  /**
    * Scans for all physical hardware and network printers with authentic live reachability probing.
    */
   async scanPrinters(forceRefresh = false): Promise<DiscoveredPrinter[]> {
@@ -243,7 +309,7 @@ export class PrinterDiscoveryService {
 
     const printers: DiscoveredPrinter[] = [];
     const presentUsbDevices = await this.getPresentUsbPrinters();
-    const lanDevices = await this.getLiveLanDevices();
+    const lanDevices = await this.getLiveLanDevices(forceRefresh);
 
     // Map of MAC address / identifier to IP
     const macToIpMap: Record<string, string> = {};

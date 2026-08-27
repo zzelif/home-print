@@ -70,31 +70,18 @@ export class CupsDriverService {
    */
   async getPrinterStatus(): Promise<PrinterStatus> {
     const printerName = await this.getActivePrinterName();
-    const printers = await this.printerDiscovery.scanPrinters();
-    const defaultPrinter = printers.find(p => p.isDefault) || printers.find(p => p.name === printerName) || printers[0];
+    const reachability = await this.printerDiscovery.checkPrinterReachability(printerName);
 
-    if (!defaultPrinter) {
-      return {
-        isOnline: false,
-        state: 'disconnected',
-        message: `${printerName} Offline / Disconnected`,
-        activePrinterName: printerName,
-      };
-    }
-
-    const isOnline = defaultPrinter.status === 'ONLINE';
-    let message = `${defaultPrinter.name} is Ready`;
-    if (defaultPrinter.status === 'DISCONNECTED') {
-      message = `${defaultPrinter.name} (Disconnected / Off)`;
-    } else if (defaultPrinter.status === 'OFFLINE') {
-      message = `${defaultPrinter.name} (Offline / Network Unreachable)`;
-    }
+    const isOnline = reachability.isOnline;
+    const message = isOnline
+      ? `${printerName} is Ready`
+      : `${printerName} (Offline / Network Unreachable)`;
 
     return {
       isOnline,
       state: isOnline ? 'idle' : 'disconnected',
       message,
-      activePrinterName: defaultPrinter.name,
+      activePrinterName: printerName,
     };
   }
 
@@ -130,7 +117,7 @@ export class CupsDriverService {
       }
     }
 
-    // Linux Print Dispatch: Standard CUPS Queue via IPP Everywhere / HPLIP with Direct Socket Fallback
+    // Linux Print Dispatch: Standard CUPS Queue via IPP Everywhere Driverless
     // 1. Resolve target IP address if printer is a network printer
     let targetIp: string | null = null;
     const ipMatch = printer.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
@@ -148,13 +135,29 @@ export class CupsDriverService {
       ? `HP_Smart_Tank_${targetIp.replace(/\./g, '_')}`
       : printer.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    // 2. Ensure CUPS queue is registered in CUPS daemon
+    const deviceUri = targetIp
+      ? `ipp://${targetIp}:631/ipp/print`
+      : (printer.startsWith('ipp://') || printer.startsWith('usb://') || printer.startsWith('hp:/') ? printer : `ipp://${cleanQueueName}:631/ipp/print`);
+
+    // 2. Ensure CUPS queue is registered in CUPS daemon using IPP Everywhere / Driverless PPD
     if (targetIp) {
       try {
-        await execAsync(`lpadmin -p "${cleanQueueName}" -E -v "ipp://${targetIp}/ipp/print" -m everywhere 2>/dev/null || lpadmin -p "${cleanQueueName}" -E -v "ipp://${targetIp}/ipp/print" -m raw 2>/dev/null || true`);
+        let ppdFlag = '-m everywhere';
+        try {
+          const ppdPath = `/tmp/${cleanQueueName}.ppd`;
+          await execAsync(`driverless "${deviceUri}" > "${ppdPath}" 2>/dev/null`);
+          const ppdStat = await fs.stat(ppdPath).catch(() => null);
+          if (ppdStat && ppdStat.size > 200) {
+            ppdFlag = `-P "${ppdPath}"`;
+          }
+        } catch {}
+
+        await execAsync(`lpadmin -p "${cleanQueueName}" -E -v "${deviceUri}" ${ppdFlag} 2>/dev/null || lpadmin -p "${cleanQueueName}" -E -v "${deviceUri}" -m everywhere 2>/dev/null || true`);
         await execAsync(`cupsenable "${cleanQueueName}" 2>/dev/null || true`);
         await execAsync(`cupsaccept "${cleanQueueName}" 2>/dev/null || true`);
-      } catch {}
+      } catch (err: any) {
+        console.warn(`CUPS queue setup warning for ${cleanQueueName}: ${err.message}`);
+      }
     }
 
     let mediaArg = 'media=A4';
@@ -176,7 +179,7 @@ export class CupsDriverService {
     const duplexArg = options.isDuplex ? '-o sides=two-sided-long-edge' : '-o sides=one-sided';
     const pageRangeArg = options.pageRange && options.pageRange !== 'all' ? `-o page-ranges=${options.pageRange}` : '';
 
-    // 3. Dispatch via standard Linux CUPS spooler
+    // 3. Dispatch via standard Linux CUPS spooler with raster filters
     try {
       const command = `lp -d "${cleanQueueName}" -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} ${pageRangeArg} "${pdfPath}"`.trim();
       const { stdout } = await execAsync(command);
@@ -184,39 +187,7 @@ export class CupsDriverService {
       const cupsJobId = match ? match[1] : 'JOB_SUBMITTED';
       return { cupsJobId, message: `Dispatched to CUPS queue ${cleanQueueName}` };
     } catch (cupsErr: any) {
-      console.warn(`CUPS lp command failed (${cupsErr.message}), attempting direct IPP / JetDirect network stream...`);
-
-      // Direct JetDirect (Port 9100) raw socket stream fallback
-      if (targetIp) {
-        try {
-          const pdfBytes = await fs.readFile(pdfPath);
-          await new Promise<void>((resolve, reject) => {
-            const socket = new net.Socket();
-            socket.setTimeout(10000);
-            socket.connect(9100, targetIp!, () => {
-              for (let c = 0; c < copies; c++) {
-                socket.write(pdfBytes);
-              }
-              socket.end();
-              resolve();
-            });
-            socket.on('error', (err) => reject(err));
-            socket.on('timeout', () => {
-              socket.destroy();
-              reject(new Error(`Timeout connecting to ${targetIp}:9100`));
-            });
-          });
-
-          return {
-            cupsJobId: `net_raw_${Date.now()}`,
-            message: `Dispatched directly to ${printer} via Direct Network Print Stream (Port 9100)`,
-          };
-        } catch (netErr: any) {
-          throw new Error(`Print dispatch failed: CUPS error (${cupsErr.message}) and Network Socket error (${netErr.message})`);
-        }
-      }
-
-      throw new Error(`Failed to dispatch print job to CUPS: ${cupsErr.message}`);
+      throw new Error(`CUPS dispatch failed for "${cleanQueueName}": ${cupsErr.message}. Ensure printer at ${targetIp || printer} is online and CUPS daemon is active.`);
     }
   }
 

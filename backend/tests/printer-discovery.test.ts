@@ -19,7 +19,7 @@ describe('Printer Auto-Discovery & Default Assignment Tests', { timeout: 20000 }
   });
 
   it('scans connected USB and Wi-Fi printers via service without throwing', async () => {
-    const printers = await service.scanPrinters(true);
+    const printers = await service.scanPrinters(false);
     expect(Array.isArray(printers)).toBe(true);
 
     // If printers are detected in the environment, validate their shape
@@ -43,6 +43,12 @@ describe('Printer Auto-Discovery & Default Assignment Tests', { timeout: 20000 }
 
     const currentDefault = await service.getDefaultPrinter();
     expect(currentDefault).toBe(targetName);
+  });
+
+  it('performs targeted reachability check without throwing', async () => {
+    const reachability = await service.checkPrinterReachability('HP_Smart_Tank_670');
+    expect(reachability).toHaveProperty('isOnline');
+    expect(typeof reachability.isOnline).toBe('boolean');
   });
 
   it('exposes scan and set-default routes via Fastify API', async () => {
@@ -102,13 +108,13 @@ describe('Printer Auto-Discovery & Default Assignment Tests', { timeout: 20000 }
     expect(addResult.printer.ipAddress).toBe(testIp);
     expect(addResult.printer.name).toBe('HP Smart Tank 670 (Test)');
 
-    const printers = await service.scanPrinters(true);
+    const printers = await service.scanPrinters(false);
     const found = printers.find(p => p.ipAddress === testIp);
     expect(found).toBeDefined();
 
     // Clean up
     await service.removeManualPrinter(addResult.printer.id);
-    const updatedPrinters = await service.scanPrinters(true);
+    const updatedPrinters = await service.scanPrinters(false);
     expect(updatedPrinters.find(p => p.id === addResult.printer.id)).toBeUndefined();
   });
 });
