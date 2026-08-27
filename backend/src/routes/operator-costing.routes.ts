@@ -1,10 +1,26 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { getDatabase } from '../db/database';
 import { CostingCalculatorService } from '../services/costing-calculator.service';
+import { getPricingConfig, updatePricingConfig, getTierDisplayLabels } from '../config/pricing-tiers.config';
 
 export const operatorCostingRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const db = getDatabase();
   const calculator = new CostingCalculatorService();
+
+  // Get current configurable pricing tiers & display labels
+  fastify.get('/api/operator/config/pricing-tiers', async (req, reply) => {
+    const config = getPricingConfig();
+    const displayLabels = getTierDisplayLabels(config);
+    return reply.send({ config, displayLabels });
+  });
+
+  // Update configurable pricing tiers & coverage thresholds
+  fastify.put('/api/operator/config/pricing-tiers', async (req, reply) => {
+    const body = req.body as any;
+    const updated = updatePricingConfig(body || {});
+    const displayLabels = getTierDisplayLabels(updated);
+    return reply.send({ success: true, config: updated, displayLabels });
+  });
 
   // Get all products and catalog
   fastify.get('/api/operator/products', async (req, reply) => {

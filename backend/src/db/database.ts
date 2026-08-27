@@ -41,6 +41,16 @@ export class DatabaseManager {
         break;
       }
     }
+
+    try {
+      this.db.exec('ALTER TABLE job_orders ADD COLUMN page_breakdown TEXT;');
+    } catch {}
+    try {
+      this.db.exec('ALTER TABLE job_orders ADD COLUMN files_purged INTEGER DEFAULT 0;');
+    } catch {}
+    try {
+      this.db.exec('ALTER TABLE job_orders ADD COLUMN service_type TEXT;');
+    } catch {}
   }
 
   getDb(): Database.Database {

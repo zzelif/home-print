@@ -5,6 +5,8 @@ import path from 'path';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { getDatabase } from '../db/database';
 
+import { PrinterDiscoveryService } from './printer-discovery.service';
+
 const execAsync = promisify(exec);
 
 export interface PrinterStatus {
@@ -23,10 +25,11 @@ export interface PrinterStatus {
 
 export interface PrintOptions {
   printerName?: string;
-  paperSize: '4R' | 'A4' | 'Letter' | 'Legal';
-  paperType: 'GLOSSY_PHOTO' | 'MATTE_PHOTO' | 'PLAIN_PAPER';
+  paperSize?: '4R' | 'A4' | 'Letter' | 'Long' | 'Legal';
+  paperType?: 'GLOSSY_PHOTO' | 'MATTE_PHOTO' | 'PLAIN_PAPER';
   copies?: number;
   isDuplex?: boolean;
+  pageRange?: string;
 }
 
 export interface SpoolJob {
@@ -39,6 +42,8 @@ export interface SpoolJob {
 }
 
 export class CupsDriverService {
+  private printerDiscovery = new PrinterDiscoveryService();
+
   /**
    * Resolves the active default printer from system settings.
    */
@@ -49,63 +54,36 @@ export class CupsDriverService {
   }
 
   /**
-   * Checks real-time printer status for the active assigned printer.
+   * Checks real-time printer status with truthful physical reachability probing.
    */
   async getPrinterStatus(): Promise<PrinterStatus> {
     const printerName = await this.getActivePrinterName();
+    const printers = await this.printerDiscovery.scanPrinters();
+    const defaultPrinter = printers.find(p => p.isDefault) || printers.find(p => p.name === printerName) || printers[0];
 
-    if (process.platform === 'win32') {
-      try {
-        const psCommand = `powershell -NoProfile -Command "Get-Printer -Name '${printerName}' -ErrorAction SilentlyContinue | Select-Object Name, PrinterStatus, WorkOffline | ConvertTo-Json -Compress"`;
-        const { stdout } = await execAsync(psCommand);
-
-        if (stdout.trim()) {
-          const info = JSON.parse(stdout);
-          const isOffline = !!info.WorkOffline || info.PrinterStatus === 7;
-          return {
-            isOnline: !isOffline,
-            state: isOffline ? 'disconnected' : 'idle',
-            message: isOffline ? `${printerName} is Offline / Disconnected` : `${printerName} is Ready`,
-            activePrinterName: printerName,
-          };
-        }
-      } catch {
-        // Printer not found on Windows
-      }
+    if (!defaultPrinter) {
       return {
         isOnline: false,
         state: 'disconnected',
-        message: `${printerName} not found or offline`,
+        message: `${printerName} Offline / Disconnected`,
         activePrinterName: printerName,
       };
     }
 
-    // Linux CUPS
-    try {
-      const { stdout } = await execAsync(`lpstat -p "${printerName}"`);
-      const isIdle = stdout.includes('is idle');
-      const isProcessing = stdout.includes('is processing') || stdout.includes('printing');
-      const isStopped = stdout.includes('is stopped') || stdout.includes('disabled');
-
-      let state: PrinterStatus['state'] = 'disconnected';
-      if (isIdle) state = 'idle';
-      else if (isProcessing) state = 'printing';
-      else if (isStopped) state = 'stopped';
-
-      return {
-        isOnline: isIdle || isProcessing,
-        state,
-        message: stdout.trim(),
-        activePrinterName: printerName,
-      };
-    } catch {
-      return {
-        isOnline: false,
-        state: 'disconnected',
-        message: `${printerName} not found / CUPS service not connected`,
-        activePrinterName: printerName,
-      };
+    const isOnline = defaultPrinter.status === 'ONLINE';
+    let message = `${defaultPrinter.name} is Ready`;
+    if (defaultPrinter.status === 'DISCONNECTED') {
+      message = `${defaultPrinter.name} (Disconnected / Off)`;
+    } else if (defaultPrinter.status === 'OFFLINE') {
+      message = `${defaultPrinter.name} (Offline / Network Unreachable)`;
     }
+
+    return {
+      isOnline,
+      state: isOnline ? 'idle' : 'disconnected',
+      message,
+      activePrinterName: defaultPrinter.name,
+    };
   }
 
   /**
@@ -117,20 +95,26 @@ export class CupsDriverService {
 
     if (process.platform === 'win32') {
       try {
-        // Dispatch to Windows default or specific printer via powershell
-        const psCommand = `powershell -NoProfile -Command "Start-Process -FilePath '${pdfPath}' -Verb Print -PassThru | Select-Object -ExpandProperty Id"`;
-        const { stdout } = await execAsync(psCommand);
-        const pid = stdout.trim() || `${Date.now()}`;
+        // Direct Windows Print Spooler dispatch via native pdf-to-printer
+        const ptp = await import('pdf-to-printer');
+        const ptpOptions: any = {
+          printer,
+          copies,
+        };
+        if (options.paperSize === '4R') {
+          ptpOptions.paperSize = 'Custom.4x6in';
+        } else if (options.paperSize) {
+          ptpOptions.paperSize = options.paperSize;
+        }
+
+        await ptp.print(pdfPath, ptpOptions);
+
         return {
-          cupsJobId: `win_${pid}`,
-          message: `Dispatched to ${printer} via Windows Spooler`,
+          cupsJobId: `win_${Date.now()}`,
+          message: `Dispatched directly to "${printer}" via Windows Hardware Spooler`,
         };
       } catch (err: any) {
-        console.warn(`Windows direct print error, simulating: ${err.message}`);
-        return {
-          cupsJobId: `sim_${Date.now()}`,
-          message: `Simulated print dispatch to ${printer}`,
-        };
+        throw new Error(`Windows hardware spool error for "${printer}": ${err.message}`);
       }
     }
 
@@ -138,6 +122,10 @@ export class CupsDriverService {
     let mediaArg = 'media=A4';
     if (options.paperSize === '4R') {
       mediaArg = 'media=Custom.4x6in.Borderless';
+    } else if (options.paperSize === 'Letter') {
+      mediaArg = 'media=Letter';
+    } else if (options.paperSize === 'Long' || options.paperSize === 'Legal') {
+      mediaArg = 'media=Legal';
     }
 
     let mediaTypeArg = 'MediaType=Plain';
@@ -148,7 +136,8 @@ export class CupsDriverService {
     }
 
     const duplexArg = options.isDuplex ? '-o sides=two-sided-long-edge' : '-o sides=one-sided';
-    const command = `lp -d "${printer}" -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} "${pdfPath}"`;
+    const pageRangeArg = options.pageRange && options.pageRange !== 'all' ? `-o page-ranges=${options.pageRange}` : '';
+    const command = `lp -d "${printer}" -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} ${pageRangeArg} "${pdfPath}"`.trim();
 
     try {
       const { stdout } = await execAsync(command);

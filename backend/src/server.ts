@@ -10,6 +10,7 @@ import fs from 'fs';
 import { getDatabase } from './db/database';
 import { authService } from './services/auth.service';
 import { PpdDiscoveryService } from './services/ppd-discovery.service';
+import { autoPurgeService } from './services/auto-purge.service';
 import { websocketRoutes } from './routes/ws';
 import { publicDropRoutes } from './routes/public-drop.routes';
 import { operatorAuthRoutes } from './routes/operator-auth.routes';
@@ -39,8 +40,7 @@ export async function buildServer() {
   ppdDiscovery.discoverOptions().catch(() => {});
 
   // Security Pre-handler Hook:
-  // Public upload routes are open.
-  // In development / local environment on localhost / LAN operator station, auto-authenticate session if cookie is missing
+  // Public upload routes and login are open. Operator routes require valid session token.
   fastify.addHook('preHandler', async (request, reply) => {
     const url = request.url;
     const isPublic = 
@@ -52,11 +52,10 @@ export async function buildServer() {
 
     if (!isPublic && url.startsWith('/api/operator/')) {
       const sessionCookie = request.cookies['hp_session'];
-      // If local dev or trusted LAN station without cookie, auto-seed valid session to prevent 401 lockouts
       if (!sessionCookie || !authService.validateSession(sessionCookie)) {
-        const autoToken = authService.verifyPin('1234').token;
-        if (autoToken) {
-          reply.setCookie('hp_session', autoToken, { path: '/', httpOnly: true, sameSite: 'lax' });
+        // In explicit test mode without auth header or in strict production, return 401
+        if (process.env.HP_ALLOW_DEV_AUTH !== 'true') {
+          return reply.status(401).send({ error: 'Operator authentication required. Please enter 4-digit PIN.' });
         }
       }
     }
@@ -103,6 +102,9 @@ if (process.env.NODE_ENV !== 'test') {
       console.log(` • Operator Station: ${address}`);
       console.log(` • Customer QR Drop: ${address}/drop`);
       console.log(`=======================================================`);
+
+      // Start 1-hour privacy auto-purge background worker
+      autoPurgeService.startWorker();
     });
   });
 }

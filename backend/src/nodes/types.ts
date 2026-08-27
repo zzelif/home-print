@@ -4,9 +4,11 @@ export type IngestionSource = 'QR_DROP' | 'HOT_FOLDER' | 'MANUAL_UI';
 export type JobStatus = 'UPLOADED' | 'IN_LAYOUT' | 'READY_TO_PRINT' | 'PRINTING' | 'COMPLETED' | 'CANCELLED';
 export type PaperSize = '4R' | 'A4' | 'Letter' | 'Legal';
 export type PaperType = 'GLOSSY_PHOTO' | 'MATTE_PHOTO' | 'PLAIN_PAPER';
-export type PresetId = 'SET_1_RUSH' | 'SET_2_2X2' | 'SET_3_COMBO' | 'SET_4_PASSPORT' | 'POLAROID' | 'FREE';
+export type PresetId = 'SET_1' | 'SET_2' | 'SET_3' | 'SET_4' | 'SET_1_RUSH' | 'SET_2_2X2' | 'SET_3_COMBO' | 'SET_4_PASSPORT' | 'POLAROID' | 'FREE';
+export type JobType = 'PHOTO_RUSH_ID' | 'DOCUMENT' | 'CUSTOM_PHOTO';
 
 export interface PhotoBoundingBox {
+  id?: string;
   xMm: number;
   yMm: number;
   widthMm: number;
@@ -18,6 +20,7 @@ export interface SharedPrintJobState {
   jobId: string;
   createdAt: string;
   source: IngestionSource;
+  jobType?: JobType;
   customer: {
     name?: string;
     phone?: string;
@@ -30,11 +33,12 @@ export interface SharedPrintJobState {
     widthPx?: number;
     heightPx?: number;
     dpi?: number;
+    pageCount?: number;
   }>;
   product: {
-    productId: string;
-    name: string;
-    category: string;
+    productId?: string;
+    name?: string;
+    category?: string;
     paperSize: PaperSize;
     paperType: PaperType;
     isDuplex: boolean;
@@ -42,6 +46,7 @@ export interface SharedPrintJobState {
   layout: {
     presetId: PresetId;
     copies: number;
+    pageRange?: string;
     showCutLines: boolean;
     zeroGap: boolean;
     mirrorFlip: boolean;
@@ -49,8 +54,9 @@ export interface SharedPrintJobState {
       scale: number;
       offsetX: number;
       offsetY: number;
+      rotation?: number;
     };
-    boxes: PhotoBoundingBox[];
+    boxes?: PhotoBoundingBox[];
   };
   costing: {
     materialCost: number;
@@ -73,7 +79,7 @@ export interface SharedPrintJobState {
     printerReady: boolean;
     inkStatus: 'OK' | 'LOW' | 'EMPTY';
     paperStatus: 'LOADED' | 'EMPTY';
-    cupsJobId?: number;
+    cupsJobId?: string | number;
   };
   payment: {
     status: 'PENDING' | 'PAID';
@@ -81,9 +87,36 @@ export interface SharedPrintJobState {
     changeDue: number;
     paymentMethod: 'CASH' | 'GCASH';
   };
+  pipelineProgress?: number;
+  compensationLog?: string[];
+}
+
+export interface GraphExecutionContext {
+  dryRun?: boolean;
+  onProgress?: (nodeName: string, progress: number, state: SharedPrintJobState) => void;
+  logger?: {
+    info: (msg: string, ...args: any[]) => void;
+    warn: (msg: string, ...args: any[]) => void;
+    error: (msg: string, ...args: any[]) => void;
+  };
+}
+
+export interface GraphExecutionResult {
+  success: boolean;
+  jobId: string;
+  state: SharedPrintJobState;
+  trace: Array<{
+    nodeName: string;
+    status: 'SUCCESS' | 'SKIPPED' | 'FAILED';
+    durationMs: number;
+    error?: string;
+  }>;
+  cupsJobId?: string;
+  pdfPath?: string;
+  error?: string;
 }
 
 export interface GraphNode<TInput, TOutput> {
   name: string;
-  execute(input: TInput): Promise<TOutput>;
+  execute(input: TInput, context?: GraphExecutionContext): Promise<TOutput>;
 }
