@@ -62,10 +62,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure CUPS permissions and allow local socket printing
-RUN usermod -aG lp,lpadmin root && \
-    mkdir -p /var/run/cups /var/spool/cups /etc/cups && \
-    sed -i 's/Listen localhost:631/Listen 0.0.0.0:631/' /etc/cups/cupsd.conf 2>/dev/null || true
+# Configure CUPS client to use the mounted host CUPS socket
+# The host must run CUPS (see docs/host-cups-setup.md)
+RUN echo "ServerName /run/cups/cups.sock" > /etc/cups/client.conf
 
 WORKDIR /app
 
@@ -93,5 +92,7 @@ EXPOSE 5000
 VOLUME ["/data"]
 
 WORKDIR /app/backend
-CMD ["sh", "-c", "service cups start && exec node dist/server.js"]
+# No internal cupsd — submit jobs to host CUPS via /run/cups/cups.sock
+CMD ["node", "dist/server.js"]
+
 

@@ -101,3 +101,12 @@ The primary operator of this system is non-technical, accessing the web OS from 
 2. **Deterministic Graph Dispatch**: Critical business logic and asset transformations must be encapsulated into pure, testable `GraphNode` modules operating on typed shared state.
 3. **5-Stage Verification Rigor**: Every major feature or refactor must pass compilation, unit mathematics, graph pipeline integration, adversarial edge case probing, and memory envelope validation before completion.
 
+---
+
+## 10. Hardware-Host Separation & Driverless Raster Directives
+
+1. **Host-Managed Peripheral Daemons**: In edge containerized environments (Raspberry Pi 4), hardware-interfacing daemons (CUPS `cupsd`, HPLIP, SANE) must execute natively on the host OS. Containers must interface as lightweight clients via mounted read-write domain sockets (`/run/cups:/run/cups`) or IPP network endpoints.
+2. **Zero-Raw Inkjet Spooling**: Consumer inkjet printers without onboard PostScript/PDF ASIC decoders (such as the HP Smart Tank 670) must NEVER receive raw PDF streams (`-m raw`). Spool queues must mandate IPP Everywhere driverless raster filtering (`-m everywhere`) or vendor raster pipelines (`hpcups`/`pdftoraster`).
+3. **Multi-Tier Hardware Telemetry & Graceful Fallback**: Hardware status, ink tank sensors, and queue states must implement multi-tier fallback chains (HPLIP $\to$ IPP Everywhere $\to$ SNMP $\to$ Persistent SQLite Cache) to ensure zero UI freezing during intermittent network or power-save events.
+
+

@@ -21,8 +21,11 @@ services:
     volumes:
       # Persistent SQLite database, customer uploads & cache on external SSD (/mnt/storage/homeprint_os)
       - ${DATA_PATH:-/mnt/storage/homeprint_os/data}:/data
-      # Share host CUPS daemon socket if CUPS runs on host
-      - /var/run/cups:/var/run/cups:ro
+      # Mount HOST CUPS socket (read-write) so the container submits jobs to the host CUPS daemon.
+      # The host must have CUPS installed: sudo bash scripts/setup-host-cups.sh
+      # Raspberry Pi OS Bookworm path: /run/cups
+      # Older Debian / Raspbian path: /var/run/cups
+      - ${CUPS_SOCKET_DIR:-/run/cups}:/run/cups
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/operator/printers/scan"]
       interval: 30s

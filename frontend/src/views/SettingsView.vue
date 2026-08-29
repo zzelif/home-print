@@ -60,6 +60,9 @@
         </div>
       </div>
 
+      <!-- Ink Level Panel -->
+      <InkLevelPanel />
+
       <!-- Physical Printers Section -->
       <div class="rounded-3xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-slate-100 pb-4">
@@ -253,6 +256,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useJobStore } from '../stores/jobStore';
+import InkLevelPanel from '../components/InkLevelPanel.vue';
 
 export interface DiscoveredPrinter {
   id: string;

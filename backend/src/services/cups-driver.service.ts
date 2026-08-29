@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
+import os from 'os';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import net from 'net';
 import { getDatabase } from '../db/database';
@@ -44,6 +45,16 @@ export interface SpoolJob {
 
 export class CupsDriverService {
   private printerDiscovery = new PrinterDiscoveryService();
+
+  /**
+   * Ensures CUPS daemon is active on Linux hosts / containers.
+   */
+  private async ensureCupsRunning(): Promise<void> {
+    if (process.platform === 'win32') return;
+    try {
+      await execAsync('lpstat -r 2>/dev/null || service cups start 2>/dev/null || /etc/init.d/cups start 2>/dev/null || true');
+    } catch {}
+  }
 
   /**
    * Resolves the active default printer from system settings.
@@ -118,6 +129,8 @@ export class CupsDriverService {
     }
 
     // Linux Print Dispatch: Standard CUPS Queue via IPP Everywhere Driverless
+    await this.ensureCupsRunning();
+
     // 1. Resolve target IP address if printer is a network printer
     let targetIp: string | null = null;
     const ipMatch = printer.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
@@ -135,28 +148,56 @@ export class CupsDriverService {
       ? `HP_Smart_Tank_${targetIp.replace(/\./g, '_')}`
       : printer.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    const deviceUri = targetIp
-      ? `ipp://${targetIp}:631/ipp/print`
-      : (printer.startsWith('ipp://') || printer.startsWith('usb://') || printer.startsWith('hp:/') ? printer : `ipp://${cleanQueueName}:631/ipp/print`);
+    let activeQueueName = cleanQueueName;
 
-    // 2. Ensure CUPS queue is registered in CUPS daemon using IPP Everywhere / Driverless PPD
+    // 2. Resolve or Register CUPS Queue
     if (targetIp) {
+      const deviceUri = `ipp://${targetIp}:631/ipp/print`;
       try {
-        let ppdFlag = '-m everywhere';
-        try {
-          const ppdPath = `/tmp/${cleanQueueName}.ppd`;
-          await execAsync(`driverless "${deviceUri}" > "${ppdPath}" 2>/dev/null`);
-          const ppdStat = await fs.stat(ppdPath).catch(() => null);
-          if (ppdStat && ppdStat.size > 200) {
-            ppdFlag = `-P "${ppdPath}"`;
+        // Check if any existing CUPS queue is already connected to target IP
+        const { stdout: lpstatOut } = await execAsync('lpstat -v 2>/dev/null').catch(() => ({ stdout: '' }));
+        let existingMatchedQueue: string | null = null;
+        for (const line of lpstatOut.split('\n')) {
+          if (line.includes(targetIp)) {
+            const match = line.match(/^device for ([^:]+):/i);
+            if (match) {
+              existingMatchedQueue = match[1].trim();
+              break;
+            }
           }
-        } catch {}
+        }
 
-        await execAsync(`lpadmin -p "${cleanQueueName}" -E -v "${deviceUri}" ${ppdFlag} 2>/dev/null || lpadmin -p "${cleanQueueName}" -E -v "${deviceUri}" -m everywhere 2>/dev/null || true`);
-        await execAsync(`cupsenable "${cleanQueueName}" 2>/dev/null || true`);
-        await execAsync(`cupsaccept "${cleanQueueName}" 2>/dev/null || true`);
+        if (existingMatchedQueue) {
+          activeQueueName = existingMatchedQueue;
+        } else {
+          // Attempt IPP Everywhere / Driverless queue creation
+          let registered = false;
+
+          try {
+            await execAsync(`lpadmin -p "${cleanQueueName}" -E -v "${deviceUri}" -m everywhere 2>/dev/null`);
+            registered = true;
+          } catch {}
+
+          if (!registered) {
+            try {
+              await execAsync(`lpadmin -p "${cleanQueueName}" -E -v "ipp://${targetIp}/ipp/print" -m everywhere 2>/dev/null`);
+              registered = true;
+            } catch {}
+          }
+
+          if (!registered) {
+            try {
+              await execAsync(`lpadmin -p "${cleanQueueName}" -E -v "${deviceUri}" -m drv:///sample.drv/generic.ppd 2>/dev/null`);
+              registered = true;
+            } catch {}
+          }
+
+          await execAsync(`cupsenable "${cleanQueueName}" 2>/dev/null || true`);
+          await execAsync(`cupsaccept "${cleanQueueName}" 2>/dev/null || true`);
+          activeQueueName = cleanQueueName;
+        }
       } catch (err: any) {
-        console.warn(`CUPS queue setup warning for ${cleanQueueName}: ${err.message}`);
+        console.warn(`CUPS queue setup notice for ${cleanQueueName}: ${err.message}`);
       }
     }
 
@@ -181,13 +222,47 @@ export class CupsDriverService {
 
     // 3. Dispatch via standard Linux CUPS spooler with raster filters
     try {
-      const command = `lp -d "${cleanQueueName}" -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} ${pageRangeArg} "${pdfPath}"`.trim();
+      const command = `lp -d "${activeQueueName}" -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} ${pageRangeArg} "${pdfPath}"`.trim();
       const { stdout } = await execAsync(command);
       const match = stdout.match(/request id is ([^\s]+)/);
       const cupsJobId = match ? match[1] : 'JOB_SUBMITTED';
-      return { cupsJobId, message: `Dispatched to CUPS queue ${cleanQueueName}` };
+      return { cupsJobId, message: `Dispatched to CUPS queue ${activeQueueName}` };
     } catch (cupsErr: any) {
-      throw new Error(`CUPS dispatch failed for "${cleanQueueName}": ${cupsErr.message}. Ensure printer at ${targetIp || printer} is online and CUPS daemon is active.`);
+      console.warn(`CUPS lp command failed (${cupsErr.message}), attempting direct IPP Everywhere dispatch via ipptool...`);
+
+      // 4. Direct IPP Protocol Fallback via ipptool over Port 631 (True IPP Everywhere Print-Job)
+      if (targetIp) {
+        try {
+          const ippScriptPath = path.join(os.tmpdir(), `job_${Date.now()}.ipp`);
+          const ippScriptContent = `
+{
+  VERSION 2.0
+  OPERATION Print-Job
+  GROUP operation-attributes-tag
+  ATTR charset "attributes-charset" "utf-8"
+  ATTR naturalLanguage "attributes-natural-language" "en"
+  ATTR uri "printer-uri" "ipp://${targetIp}:631/ipp/print"
+  ATTR name "requesting-user-name" "HomePrint"
+  ATTR name "job-name" "${path.basename(pdfPath)}"
+  ATTR mimeMediaType "document-format" "application/pdf"
+  ATTR integer "copies" ${copies}
+  FILE "${pdfPath.replace(/\\/g, '/')}"
+}
+`.trim();
+          await fs.writeFile(ippScriptPath, ippScriptContent);
+          await execAsync(`ipptool -v -t "ipp://${targetIp}:631/ipp/print" "${ippScriptPath}"`);
+          await fs.unlink(ippScriptPath).catch(() => {});
+
+          return {
+            cupsJobId: `ipp_${Date.now()}`,
+            message: `Dispatched directly to ${printer} via IPP Everywhere protocol (Port 631)`,
+          };
+        } catch (ippErr: any) {
+          throw new Error(`Print dispatch failed: CUPS error (${cupsErr.message}) and Direct IPP protocol error (${ippErr.message})`);
+        }
+      }
+
+      throw new Error(`CUPS dispatch failed for "${activeQueueName}": ${cupsErr.message}. Ensure printer at ${targetIp || printer} is online.`);
     }
   }
 

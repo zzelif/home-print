@@ -18,6 +18,7 @@ import { operatorJobsRoutes } from './routes/operator-jobs.routes';
 import { operatorCostingRoutes } from './routes/operator-costing.routes';
 import { operatorPrintRoutes } from './routes/operator-print.routes';
 import { operatorPrintersRoutes } from './routes/operator-printers.routes';
+import { operatorInkRoutes } from './routes/operator-ink.routes';
 
 export async function buildServer() {
   const fastify = Fastify({
@@ -69,6 +70,7 @@ export async function buildServer() {
   await fastify.register(operatorCostingRoutes);
   await fastify.register(operatorPrintRoutes);
   await fastify.register(operatorPrintersRoutes);
+  await fastify.register(operatorInkRoutes);
 
   // Serve static frontend build if it exists
   const publicDir = path.resolve(__dirname, 'public');

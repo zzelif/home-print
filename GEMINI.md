@@ -43,3 +43,9 @@
    - Critical business logic and asset transformations must execute via state-gated `GraphNode` pipelines operating on strongly-typed shared state.
    - Enforce the 5-Stage Verification cycle: Compilation $\to$ Unit Math $\to$ Graph Integration $\to$ Adversarial Probing $\to$ Memory Profiling.
 
+10. **Hardware-Host Separation & Driverless Raster Directives**:
+    - Hardware-interfacing daemons (CUPS `cupsd`, HPLIP, SANE) must execute natively on the host OS; Docker containers interface as lightweight clients via mounted read-write sockets (`/run/cups:/run/cups`).
+    - Consumer inkjet printers without onboard PostScript/PDF ASIC decoders (such as HP Smart Tank 670) must never receive raw PDF streams (`-m raw`). Always mandate IPP Everywhere driverless raster filtering (`-m everywhere`) or vendor raster pipelines.
+    - Implement multi-tier fallback chains (HPLIP $\to$ IPP Everywhere $\to$ SNMP $\to$ Persistent SQLite Cache) for hardware telemetry and queue states.
+
+
