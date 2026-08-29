@@ -143,7 +143,7 @@ describe('InkLevelService — Ink Level Parsing & Caching', { timeout: 15000 }, 
   it('getInkLevels returns unavailable when no IP and no cache', async () => {
     const db = getDatabase();
     // Clear settings so there's no IP to probe and no valid cache
-    db.prepare("DELETE FROM system_settings WHERE key IN ('default_printer_name', 'default_printer_ip', 'cached_ink_levels')").run();
+    db.prepare("DELETE FROM system_settings WHERE key LIKE 'cached_ink_levels%' OR key IN ('default_printer_name', 'default_printer_ip')").run();
 
     const levels = await service.getInkLevels();
     expect(levels.source).toBe('unavailable');

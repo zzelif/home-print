@@ -6,15 +6,16 @@ export const operatorInkRoutes: FastifyPluginAsync = async (fastify) => {
 
   /**
    * GET /api/operator/printers/ink-levels
-   * Returns current ink tank percentages for the default printer.
+   * Returns current ink tank percentages for the requested or default printer.
    * Reads from HPLIP → IPP → SQLite cache in priority order.
    */
   fastify.get<{
-    Querystring: { ip?: string };
+    Querystring: { ip?: string; printerName?: string; name?: string };
   }>('/api/operator/printers/ink-levels', async (request, reply) => {
     try {
-      const { ip } = request.query;
-      const levels = await inkService.getInkLevels(ip);
+      const { ip, printerName, name } = request.query;
+      const targetPrinter = printerName || name;
+      const levels = await inkService.getInkLevels(targetPrinter, ip);
       return reply.send({
         success: true,
         inkLevels: levels,

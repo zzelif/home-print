@@ -40,8 +40,8 @@
         <div class="min-w-0">
           <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Assigned System Default Printer</span>
           <h2 class="mt-1 text-xl sm:text-2xl font-black text-white flex flex-wrap items-center gap-2 sm:gap-3">
-            <span class="truncate">{{ activeDefaultPrinter || 'HP Smart Tank 660-670 series [28C379]' }}</span>
-            <span class="rounded-full bg-green-500/20 px-3 py-0.5 text-xs font-bold text-green-400 shrink-0">ACTIVE TARGET</span>
+            <span class="truncate">{{ activeDefaultPrinter || 'No Default Printer Assigned' }}</span>
+            <span v-if="activeDefaultPrinter" class="rounded-full bg-green-500/20 px-3 py-0.5 text-xs font-bold text-green-400 shrink-0">ACTIVE TARGET</span>
           </h2>
           <p class="mt-1 text-xs text-slate-400">All print jobs from Layout Studio and Document Station automatically route to this printer.</p>
         </div>
@@ -61,7 +61,10 @@
       </div>
 
       <!-- Ink Level Panel -->
-      <InkLevelPanel />
+      <InkLevelPanel
+        :printer-name="selectedInspectionPrinter?.name || activeDefaultPrinter"
+        :printer-ip="selectedInspectionPrinter?.ipAddress || activePrinterIp"
+      />
 
       <!-- Physical Printers Section -->
       <div class="rounded-3xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
@@ -145,6 +148,14 @@
               >
                 {{ p.status === 'ONLINE' ? 'ONLINE (Ready)' : p.status === 'DISCONNECTED' ? 'DISCONNECTED (Unplugged / Off)' : p.status }}
               </span>
+
+              <!-- Inspect Ink Button -->
+              <button
+                @click="selectedInspectionPrinter = p"
+                class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition min-h-[40px]"
+              >
+                Inspect Ink
+              </button>
 
               <!-- Set Default Button -->
               <button
@@ -273,7 +284,8 @@ export interface DiscoveredPrinter {
 
 const jobStore = useJobStore();
 const printers = ref<DiscoveredPrinter[]>([]);
-const activeDefaultPrinter = ref('HP Smart Tank 660-670 series [28C379]');
+const activeDefaultPrinter = ref('');
+const selectedInspectionPrinter = ref<DiscoveredPrinter | null>(null);
 const isScanning = ref(false);
 const isAddingPrinter = ref(false);
 const isPrintingSwatch = ref(false);
@@ -284,6 +296,10 @@ const notificationBanner = ref<{ type: 'success' | 'error'; message: string } | 
 
 const physicalPrinters = computed(() => printers.value.filter((p) => !p.isVirtual));
 const virtualPrinters = computed(() => printers.value.filter((p) => p.isVirtual));
+const activePrinterIp = computed(() => {
+  const target = physicalPrinters.value.find((p) => p.name === activeDefaultPrinter.value || p.isDefault);
+  return target?.ipAddress || null;
+});
 
 onMounted(() => {
   fetchPrinters();
@@ -295,7 +311,8 @@ async function fetchPrinters() {
     if (res.ok) {
       const data = await res.json();
       printers.value = data.printers || [];
-      activeDefaultPrinter.value = data.defaultPrinter || 'HP Smart Tank 660-670 series [28C379]';
+      const defaultFound = data.defaultPrinter || (printers.value.find((p) => p.isDefault)?.name || '');
+      activeDefaultPrinter.value = defaultFound;
     }
   } catch (err) {
     console.error('Failed to fetch printers:', err);

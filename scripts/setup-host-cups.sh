@@ -89,12 +89,24 @@ DefaultEncryption IfRequested
 # Allow all clients to access Root Web UI
 <Location />
   Order allow,deny
+  Allow localhost
+  Allow 127.0.0.1
+  Allow @LOCAL
+  Allow 192.168.*
+  Allow 10.*
+  Allow 172.*
   Allow all
 </Location>
 
 # Allow all clients to view Admin pages
 <Location /admin>
   Order allow,deny
+  Allow localhost
+  Allow 127.0.0.1
+  Allow @LOCAL
+  Allow 192.168.*
+  Allow 10.*
+  Allow 172.*
   Allow all
 </Location>
 
@@ -103,6 +115,12 @@ DefaultEncryption IfRequested
   AuthType Default
   Require user @SYSTEM
   Order allow,deny
+  Allow localhost
+  Allow 127.0.0.1
+  Allow @LOCAL
+  Allow 192.168.*
+  Allow 10.*
+  Allow 172.*
   Allow all
 </Location>
 
@@ -141,8 +159,9 @@ CUPSCONF
 log "Adding ${CUPS_ADMIN_USER} to lp and lpadmin groups..."
 usermod -aG lp,lpadmin "${CUPS_ADMIN_USER}" 2>/dev/null || true
 
-# Restart CUPS to apply config
-systemctl restart cups
+# Stop socket and daemon, then start cleanly to ensure socket activation resets
+systemctl stop cups cups.socket cups-browsed 2>/dev/null || true
+systemctl start cups cups.socket
 sleep 2
 
 # ---------------------------------------------------------------------------

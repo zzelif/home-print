@@ -11,6 +11,8 @@ export interface InkLevels {
   yellow: number;
   readAt: string;      // ISO timestamp
   source: 'hplip' | 'snmp' | 'ipp' | 'cached' | 'unavailable';
+  printerName?: string;
+  printerIp?: string | null;
 }
 
 export interface NozzleCheckResult {
@@ -37,40 +39,58 @@ export interface CupsQueueStatus {
   jobs: PrinterQueueJob[];
 }
 
-const INK_CACHE_KEY = 'cached_ink_levels';
+const INK_CACHE_PREFIX = 'cached_ink_levels';
 const INK_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minute TTL
 
 export class InkLevelService {
   /**
-   * Reads real ink tank percentages from the HP Smart Tank 670.
+   * Reads real ink tank percentages dynamically for any specified or active default printer.
    *
    * Strategy (in priority order):
-   * 1. HPLIP `hp-levels` — most accurate, reads actual tank sensor
+   * 1. HPLIP `hp-levels` — most accurate, reads actual hardware tank sensors
    * 2. HPLIP `hp-info` — broader output, parse ink section
    * 3. IPP Get-Printer-Attributes `printer-supply` — standard IPP Everywhere
-   * 4. Return cached SQLite value if all live reads fail
+   * 4. Return cached SQLite value per-printer if all live reads fail
    */
-  async getInkLevels(printerIp?: string): Promise<InkLevels> {
-    const ip = printerIp ?? (await this.resolveDefaultPrinterIp());
+  async getInkLevels(printerName?: string, printerIp?: string): Promise<InkLevels> {
+    const resolvedName = printerName || (await this.resolveDefaultQueueName());
+    const ip = printerIp ?? (await this.resolvePrinterIp(resolvedName));
+    const cacheKey = this.getCacheKey(ip, resolvedName);
 
     // Attempt live reads in order of reliability
     if (ip) {
       const hplipLevels = await this.readViaHplip(ip);
       if (hplipLevels) {
-        await this.cacheInkLevels(hplipLevels);
-        return hplipLevels;
+        const result: InkLevels = {
+          ...hplipLevels,
+          printerName: resolvedName,
+          printerIp: ip,
+        };
+        await this.cacheInkLevels(cacheKey, result);
+        return result;
       }
 
       const ippLevels = await this.readViaIppAttributes(ip);
       if (ippLevels) {
-        await this.cacheInkLevels(ippLevels);
-        return ippLevels;
+        const result: InkLevels = {
+          ...ippLevels,
+          printerName: resolvedName,
+          printerIp: ip,
+        };
+        await this.cacheInkLevels(cacheKey, result);
+        return result;
       }
     }
 
-    // Fall back to SQLite cache
-    const cached = await this.getCachedInkLevels();
-    if (cached) return cached;
+    // Fall back to SQLite cache for this specific printer
+    const cached = await this.getCachedInkLevels(cacheKey);
+    if (cached) {
+      return {
+        ...cached,
+        printerName: resolvedName,
+        printerIp: ip,
+      };
+    }
 
     // Return unknown state
     return {
@@ -80,6 +100,8 @@ export class InkLevelService {
       yellow: -1,
       readAt: new Date().toISOString(),
       source: 'unavailable',
+      printerName: resolvedName,
+      printerIp: ip,
     };
   }
 
@@ -310,7 +332,15 @@ export class InkLevelService {
     return found ? result : null;
   }
 
-  private async cacheInkLevels(levels: InkLevels): Promise<void> {
+  private getCacheKey(ip: string | null, printerName: string): string {
+    if (ip) {
+      return `${INK_CACHE_PREFIX}_${ip.replace(/\./g, '_')}`;
+    }
+    const clean = printerName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `${INK_CACHE_PREFIX}_${clean}`;
+  }
+
+  private async cacheInkLevels(cacheKey: string, levels: InkLevels): Promise<void> {
     try {
       const db = getDatabase();
       const nowIso = new Date().toISOString(); // Use JS ISO to avoid SQLite timezone ambiguity
@@ -318,15 +348,15 @@ export class InkLevelService {
         INSERT INTO system_settings (key, value, updated_at)
         VALUES (?, ?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-      `).run(INK_CACHE_KEY, JSON.stringify(levels), nowIso);
+      `).run(cacheKey, JSON.stringify(levels), nowIso);
     } catch {}
   }
 
-  private async getCachedInkLevels(): Promise<InkLevels | null> {
+  private async getCachedInkLevels(cacheKey: string = INK_CACHE_PREFIX): Promise<InkLevels | null> {
     try {
       const db = getDatabase();
       const row = db.prepare("SELECT value, updated_at FROM system_settings WHERE key = ?")
-        .get(INK_CACHE_KEY) as { value: string; updated_at: string } | undefined;
+        .get(cacheKey) as { value: string; updated_at: string } | undefined;
       if (!row) return null;
 
       const cached: InkLevels = JSON.parse(row.value);
@@ -337,6 +367,35 @@ export class InkLevelService {
     } catch {
       return null;
     }
+  }
+
+  private async resolvePrinterIp(printerName?: string): Promise<string | null> {
+    if (printerName) {
+      // 1. Direct IP check inside printerName (e.g. 192.168.1.60 or HP_Smart_Tank_192_168_1_60)
+      const dotMatch = printerName.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+      if (dotMatch) return dotMatch[1];
+
+      const underMatch = printerName.match(/(\d{1,3})_(\d{1,3})_(\d{1,3})_(\d{1,3})/);
+      if (underMatch) return `${underMatch[1]}.${underMatch[2]}.${underMatch[3]}.${underMatch[4]}`;
+
+      // 2. Query manual_printers table by name or ID
+      try {
+        const db = getDatabase();
+        const manualRow = db.prepare("SELECT ip_address FROM manual_printers WHERE name = ? OR id = ?").get(printerName, printerName) as { ip_address: string } | undefined;
+        if (manualRow?.ip_address) return manualRow.ip_address;
+      } catch {}
+
+      // 3. Query CUPS lpstat for device URI
+      if (process.platform !== 'win32') {
+        try {
+          const { stdout } = await execAsync(`lpstat -v "${printerName}" 2>/dev/null`);
+          const uriMatch = stdout.match(/ipp:\/\/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/i);
+          if (uriMatch) return uriMatch[1];
+        } catch {}
+      }
+    }
+
+    return this.resolveDefaultPrinterIp();
   }
 
   private async resolveDefaultPrinterIp(): Promise<string | null> {
@@ -354,6 +413,9 @@ export class InkLevelService {
       if (nameRow?.value) {
         const ipMatch = nameRow.value.match(/(\d{1,3})_(\d{1,3})_(\d{1,3})_(\d{1,3})/);
         if (ipMatch) return `${ipMatch[1]}.${ipMatch[2]}.${ipMatch[3]}.${ipMatch[4]}`;
+
+        const dotMatch = nameRow.value.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+        if (dotMatch) return dotMatch[1];
       }
 
       // Try manual_printers table
@@ -370,7 +432,13 @@ export class InkLevelService {
       const row = db.prepare("SELECT value FROM system_settings WHERE key = 'default_printer_name'")
         .get() as { value: string } | undefined;
       if (row?.value) return row.value;
+
+      if (process.platform !== 'win32') {
+        const { stdout } = await execAsync('lpstat -d 2>/dev/null').catch(() => ({ stdout: '' }));
+        const match = stdout.match(/system default destination:\s*(.+)$/i);
+        if (match && match[1].trim()) return match[1].trim();
+      }
     } catch {}
-    return 'HP_Smart_Tank_670';
+    return 'Default_Printer';
   }
 }

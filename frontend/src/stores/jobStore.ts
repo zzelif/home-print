@@ -41,7 +41,7 @@ export const useJobStore = defineStore('jobStore', () => {
     isOnline: false,
     state: 'disconnected',
     message: 'Printer not connected / Offline',
-    activePrinterName: 'HP Smart Tank 670 Series',
+    activePrinterName: '',
   });
 
   let ws: WebSocket | null = null;
