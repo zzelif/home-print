@@ -75,81 +75,71 @@ LogTimeFormat standard
 # Enable Web Interface
 WebInterface Yes
 
-# Listen on socket and all network interfaces
+# Listen on socket and all network interfaces on port 631
 Port 631
 Listen /run/cups/cups.sock
 
-# Enable printer sharing and mDNS browsing
+# Server name and alias settings
 ServerAlias *
 Browsing Yes
 BrowseLocalProtocols dnssd
 DefaultAuthType Basic
+DefaultEncryption IfRequested
 
-# Root Web UI Access (allow LAN and localhost)
+# Allow all clients to access Root Web UI
 <Location />
   Order allow,deny
-  Allow @LOCAL
-  Allow 127.0.0.1
   Allow all
 </Location>
 
-# Admin Pages Access
+# Allow all clients to view Admin pages
 <Location /admin>
   Order allow,deny
-  Allow @LOCAL
-  Allow 127.0.0.1
   Allow all
 </Location>
 
-# Admin Configuration File Access
+# Admin Configuration (requires Linux user authentication)
 <Location /admin/conf>
   AuthType Default
   Require user @SYSTEM
   Order allow,deny
-  Allow @LOCAL
-  Allow 127.0.0.1
   Allow all
 </Location>
 
-# Policy
+# Printers & Jobs
+<Location /printers>
+  Order allow,deny
+  Allow all
+</Location>
+
+<Location /classes>
+  Order allow,deny
+  Allow all
+</Location>
+
+<Location /jobs>
+  Order allow,deny
+  Allow all
+</Location>
+
+# Operation Policy
 <Policy default>
   JobPrivateAccess all
   JobPrivateValues none
   SubscriptionPrivateAccess all
   SubscriptionPrivateValues none
-  <Limit Create-Job Print-Job Print-URI Validate-Job>
-    Order deny,allow
-  </Limit>
-  <Limit Send-Document Send-URI Hold-Job Release-Job Restart-Job Purge-Jobs Set-Job-Attributes Create-Job-Subscription Renew-Subscription Cancel-Subscription Get-Notifications Reprocess-Job Cancel-Current-Job Suspend-Current-Job Resume-Job Cancel-My-Jobs Close-Job CUPS-Move-Job CUPS-Get-Document>
-    Order deny,allow
-  </Limit>
-  <Limit CUPS-Add-Modify-Printer CUPS-Delete-Printer CUPS-Add-Modify-Class CUPS-Delete-Class>
-    AuthType Default
-    Require valid-user
-    Order deny,allow
-  </Limit>
-  <Limit Pause-Printer Resume-Printer Enable-Printer Disable-Printer Pause-Printer-After-Current-Job Hold-New-Jobs Release-Held-New-Jobs Deactivate-Printer Activate-Printer Restart-Printer Shutdown-Printer Startup-Printer Promote-Job Schedule-Job-After Cancel-Jobs CUPS-Accept-Jobs CUPS-Reject-Jobs>
-    AuthType Default
-    Require valid-user
-    Order deny,allow
-  </Limit>
-  <Limit Cancel-Job CUPS-Authenticate-Job>
-    Order deny,allow
-  </Limit>
   <Limit All>
-    Order deny,allow
+    Order allow,deny
+    Allow all
   </Limit>
 </Policy>
 CUPSCONF
 
 # ---------------------------------------------------------------------------
-# Step 4: Add operator user to CUPS admin group & enable remote admin via cupsctl
+# Step 4: Add operator user to CUPS admin group
 # ---------------------------------------------------------------------------
 log "Adding ${CUPS_ADMIN_USER} to lp and lpadmin groups..."
 usermod -aG lp,lpadmin "${CUPS_ADMIN_USER}" 2>/dev/null || true
-
-# Explicitly enable remote access via cupsctl
-cupsctl --remote-admin --remote-any --share-printers WebInterface=yes 2>/dev/null || true
 
 # Restart CUPS to apply config
 systemctl restart cups
