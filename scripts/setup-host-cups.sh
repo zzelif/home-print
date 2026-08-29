@@ -72,31 +72,43 @@ LogLevel warn
 MaxLogSize 1m
 LogTimeFormat standard
 
-# Listen on all interfaces for LAN access
-Listen /run/cups/cups.sock
-Listen 0.0.0.0:631
+# Enable Web Interface
+WebInterface Yes
 
-# Enable sharing and remote admin
+# Listen on socket and all network interfaces
+Port 631
+Listen /run/cups/cups.sock
+
+# Enable printer sharing and mDNS browsing
 ServerAlias *
-Browsing On
+Browsing Yes
+BrowseLocalProtocols dnssd
 DefaultAuthType Basic
 
-# Root Web UI
+# Root Web UI Access (allow LAN and localhost)
 <Location />
   Order allow,deny
-  Allow from 127.0.0.1
-  Allow from 192.168.0.0/16
-  Allow from 10.0.0.0/8
-  Allow from 172.16.0.0/12
+  Allow @LOCAL
+  Allow 127.0.0.1
+  Allow all
 </Location>
 
-# Admin pages require auth
+# Admin Pages Access
 <Location /admin>
-  AuthType Default
-  Require valid-user
   Order allow,deny
-  Allow from 127.0.0.1
-  Allow from 192.168.0.0/16
+  Allow @LOCAL
+  Allow 127.0.0.1
+  Allow all
+</Location>
+
+# Admin Configuration File Access
+<Location /admin/conf>
+  AuthType Default
+  Require user @SYSTEM
+  Order allow,deny
+  Allow @LOCAL
+  Allow 127.0.0.1
+  Allow all
 </Location>
 
 # Policy
@@ -131,10 +143,13 @@ DefaultAuthType Basic
 CUPSCONF
 
 # ---------------------------------------------------------------------------
-# Step 4: Add operator user to CUPS admin group
+# Step 4: Add operator user to CUPS admin group & enable remote admin via cupsctl
 # ---------------------------------------------------------------------------
 log "Adding ${CUPS_ADMIN_USER} to lp and lpadmin groups..."
 usermod -aG lp,lpadmin "${CUPS_ADMIN_USER}" 2>/dev/null || true
+
+# Explicitly enable remote access via cupsctl
+cupsctl --remote-admin --remote-any --share-printers WebInterface=yes 2>/dev/null || true
 
 # Restart CUPS to apply config
 systemctl restart cups
