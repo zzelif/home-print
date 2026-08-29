@@ -12,7 +12,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 PRINTER_IP="${PRINTER_IP:-}"
 PRINTER_QUEUE_NAME="HP_Smart_Tank_670"
-CUPS_ADMIN_USER="${CUPS_ADMIN_USER:-pi}"
+CUPS_ADMIN_USER="${CUPS_ADMIN_USER:-${SUDO_USER:-$USER}}"
 
 log() { echo "[HomePrint] $*"; }
 err() { echo "[HomePrint ERROR] $*" >&2; exit 1; }
@@ -40,10 +40,11 @@ apt-get install -y --no-install-recommends \
     cups-ipp-utils \
     hplip \
     printer-driver-hpcups \
-    ippfind \
     avahi-daemon \
     libnss-mdns \
     curl \
+    net-tools \
+    iproute2 \
     python3-pexpect \
     python3-requests
 
