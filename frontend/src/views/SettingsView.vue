@@ -1,16 +1,36 @@
 <template>
   <div class="p-3.5 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
     <!-- Header -->
-    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200">
+    <header
+      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200"
+    >
       <div class="flex items-center gap-3">
-        <router-link to="/" class="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 shrink-0">
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        <router-link
+          to="/"
+          class="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 shrink-0"
+        >
+          <svg
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
           </svg>
         </router-link>
         <div class="min-w-0">
-          <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">Hardware & Network Printer Discovery</h1>
-          <p class="text-xs text-slate-500 font-medium truncate">Authentic Subnet ARP & Hardware Bus Scanning (HP Smart Tank 670, Direct USB, Wi-Fi IPP)</p>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">
+            Hardware & Network Printer Discovery
+          </h1>
+          <p class="text-xs text-slate-500 font-medium truncate">
+            Authentic Subnet ARP & Hardware Bus Scanning (HP Smart Tank 670,
+            Direct USB, Wi-Fi IPP)
+          </p>
         </div>
       </div>
 
@@ -28,34 +48,87 @@
           stroke="currentColor"
           stroke-width="2"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
         </svg>
-        <span>{{ isScanning ? 'Scanning Network ARP & USB...' : '1-Click Scan for Printers' }}</span>
+        <span>{{
+          isScanning
+            ? "Scanning Network ARP & USB..."
+            : "1-Click Scan for Printers"
+        }}</span>
       </button>
     </header>
 
     <div class="space-y-4 sm:space-y-6">
       <!-- Active Default Banner -->
-      <div class="rounded-3xl bg-slate-900 p-4 sm:p-6 text-white shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div
+        class="rounded-3xl bg-slate-900 p-4 sm:p-6 text-white shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
         <div class="min-w-0">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Assigned System Default Printer</span>
-          <h2 class="mt-1 text-xl sm:text-2xl font-black text-white flex flex-wrap items-center gap-2 sm:gap-3">
-            <span class="truncate">{{ activeDefaultPrinter || 'No Default Printer Assigned' }}</span>
-            <span v-if="activeDefaultPrinter" class="rounded-full bg-green-500/20 px-3 py-0.5 text-xs font-bold text-green-400 shrink-0">ACTIVE TARGET</span>
+          <span
+            class="text-xs font-bold uppercase tracking-wider text-slate-400"
+            >Assigned System Default Printer</span
+          >
+          <h2
+            class="mt-1 text-xl sm:text-2xl font-black text-white flex flex-wrap items-center gap-2 sm:gap-3"
+          >
+            <span class="truncate">{{
+              activeDefaultPrinter || "No Default Printer Assigned"
+            }}</span>
+            <span
+              v-if="activeDefaultPrinter && defaultPrinterStatus === 'ONLINE'"
+              class="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-0.5 text-xs font-bold text-emerald-400 shrink-0"
+              >● ONLINE (READY)</span
+            >
+            <span
+              v-else-if="activeDefaultPrinter && defaultPrinterStatus === 'OFFLINE'"
+              class="rounded-full bg-amber-500/20 border border-amber-500/30 px-3 py-0.5 text-xs font-bold text-amber-400 shrink-0"
+              >○ OFFLINE (UNREACHABLE)</span
+            >
+            <span
+              v-else-if="activeDefaultPrinter && defaultPrinterStatus === 'DISCONNECTED'"
+              class="rounded-full bg-rose-500/20 border border-rose-500/30 px-3 py-0.5 text-xs font-bold text-rose-400 shrink-0"
+              >○ DISCONNECTED</span
+            >
+            <span
+              v-else-if="!activeDefaultPrinter"
+              class="rounded-full bg-slate-800 border border-slate-700 px-3 py-0.5 text-xs font-bold text-slate-400 shrink-0"
+              >NO DEFAULT ASSIGNED</span
+            >
           </h2>
-          <p class="mt-1 text-xs text-slate-400">All print jobs from Layout Studio and Document Station automatically route to this printer.</p>
+          <p class="mt-1 text-xs text-slate-400">
+            All print jobs from Layout Studio and Document Station automatically
+            route to this printer.
+          </p>
         </div>
 
         <div class="flex items-center gap-3 w-full sm:w-auto">
           <button
             @click="testPrintSwatch"
-            :disabled="isPrintingSwatch"
+            :disabled="isPrintingSwatch || defaultPrinterStatus !== 'ONLINE'"
             class="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition disabled:opacity-50 w-full sm:w-auto min-h-[48px]"
           >
-            <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            <svg
+              class="h-4 w-4 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+              />
             </svg>
-            <span>{{ isPrintingSwatch ? 'Sending to Hardware...' : 'Print Swatch (Real Hardware)' }}</span>
+            <span>{{
+              isPrintingSwatch
+                ? "Sending to Hardware..."
+                : "Print Swatch (Real Hardware)"
+            }}</span>
           </button>
         </div>
       </div>
@@ -63,20 +136,35 @@
       <!-- Ink Level Panel -->
       <InkLevelPanel
         :printer-name="selectedInspectionPrinter?.name || activeDefaultPrinter"
-        :printer-ip="selectedInspectionPrinter?.ipAddress || activePrinterIp"
+        :printer-ip?="selectedInspectionPrinter?.ipAddress || activePrinterIp"
       />
 
       <!-- Physical Printers Section -->
-      <div class="rounded-3xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-slate-100 pb-4">
+      <div
+        class="rounded-3xl bg-white p-4 sm:p-6 shadow-sm ring-1 ring-slate-200 space-y-4"
+      >
+        <div
+          class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-slate-100 pb-4"
+        >
           <div>
-            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <h3
+              class="text-base font-bold text-slate-900 flex items-center gap-2"
+            >
               <span>Physical Hardware Printers</span>
-              <span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-black text-blue-700">{{ physicalPrinters.length }}</span>
+              <span
+                class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-black text-blue-700"
+                >{{ physicalPrinters.length }}</span
+              >
             </h3>
-            <p class="text-xs text-slate-500 font-medium">Scanned via local ARP table, TCP port 631/9100 probe, and USB hardware buses</p>
+            <p class="text-xs text-slate-500 font-medium">
+              Scanned via local ARP table, TCP port 631/9100 probe, and USB
+              hardware buses
+            </p>
           </div>
-          <span v-if="lastScannedAt" class="text-xs text-slate-400 font-medium">Last scanned: {{ new Date(lastScannedAt).toLocaleTimeString() }}</span>
+          <span v-if="lastScannedAt" class="text-xs text-slate-400 font-medium"
+            >Last scanned:
+            {{ new Date(lastScannedAt).toLocaleTimeString() }}</span
+          >
         </div>
 
         <!-- Physical Printers List -->
@@ -85,68 +173,128 @@
             v-for="p in physicalPrinters"
             :key="p.id"
             :class="[
-              p.isDefault ? 'border-2 border-green-500 bg-green-50/20' : 'border border-slate-200 bg-white hover:border-slate-300',
-              'flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl p-4 transition shadow-sm'
+              p.isDefault
+                ? 'border-2 border-blue-500 bg-blue-50/10 shadow-sm'
+                : 'border border-slate-200 bg-white hover:border-slate-300',
+              'flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl p-4 transition',
             ]"
           >
             <!-- Left Info -->
             <div class="flex items-center gap-3 sm:gap-4 min-w-0">
               <div
                 :class="[
-                  p.connectionType === 'USB' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700',
-                  'flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl shrink-0'
+                  p.connectionType === 'USB'
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-purple-100 text-purple-700',
+                  'flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl shrink-0',
                 ]"
               >
                 <!-- USB Icon -->
-                <svg v-if="p.connectionType === 'USB'" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                <svg
+                  v-if="p.connectionType === 'USB'"
+                  class="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M12 4v16m8-8H4"
+                  />
                 </svg>
                 <!-- Wi-Fi Icon -->
-                <svg v-else class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                <svg
+                  v-else
+                  class="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                  />
                 </svg>
               </div>
 
               <!-- Printer Details -->
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <h4 class="text-sm sm:text-base font-extrabold text-slate-900 truncate">{{ p.name }}</h4>
+                  <h4
+                    class="text-sm sm:text-base font-extrabold text-slate-900 truncate"
+                  >
+                    {{ p.name }}
+                  </h4>
                   <span
                     :class="[
-                      p.connectionType === 'USB' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700',
-                      'rounded-lg px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shrink-0'
+                      p.connectionType === 'USB'
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'bg-purple-50 text-purple-700',
+                      'rounded-lg px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shrink-0',
                     ]"
                   >
-                    {{ p.connectionType === 'USB' ? 'Direct USB' : 'Wi-Fi / Network IPP' }}
+                    {{
+                      p.connectionType === "USB"
+                        ? "Direct USB"
+                        : "Wi-Fi / Network IPP"
+                    }}
                   </span>
-                  <span v-if="p.isDefault" class="rounded-lg bg-green-600 px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider shrink-0">
+                  <span
+                    v-if="p.isDefault"
+                    class="rounded-lg bg-slate-900 px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider shrink-0"
+                  >
                     DEFAULT
                   </span>
                 </div>
 
-                <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 font-medium">
-                  <span v-if="p.ipAddress" class="font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-bold">
+                <div
+                  class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 font-medium"
+                >
+                  <span
+                    v-if="p.ipAddress"
+                    class="font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-bold"
+                  >
                     {{ p.ipAddress }}
                   </span>
-                  <span v-else class="font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                    {{ p.portName || 'USB' }}
+                  <span
+                    v-else
+                    class="font-mono text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md"
+                  >
+                    {{ p.portName || "USB" }}
                   </span>
                   <span>•</span>
-                  <span class="text-slate-500 truncate max-w-xs">{{ p.makeAndModel }}</span>
+                  <span class="text-slate-500 truncate max-w-xs">{{
+                    p.makeAndModel
+                  }}</span>
                 </div>
               </div>
             </div>
 
             <!-- Right Status & Action -->
-            <div class="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-100 sm:border-t-0">
+            <div
+              class="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t border-slate-100 sm:border-t-0"
+            >
               <span
                 :class="[
-                  p.status === 'ONLINE' ? 'bg-green-100 text-green-800' :
-                  p.status === 'OFFLINE' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600',
-                  'rounded-full px-3 py-1 text-xs font-bold shrink-0'
+                  p.status === 'ONLINE'
+                    ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
+                    : p.status === 'OFFLINE'
+                      ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+                      : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
+                  'rounded-full px-3 py-1 text-xs font-bold shrink-0',
                 ]"
               >
-                {{ p.status === 'ONLINE' ? 'ONLINE (Ready)' : p.status === 'DISCONNECTED' ? 'DISCONNECTED (Unplugged / Off)' : p.status }}
+                {{
+                  p.status === "ONLINE"
+                    ? "● ONLINE (Ready)"
+                    : p.status === "OFFLINE"
+                      ? "○ OFFLINE (Unreachable)"
+                      : "○ DISCONNECTED"
+                }}
               </span>
 
               <!-- Inspect Ink Button -->
@@ -165,11 +313,24 @@
               >
                 Set as Default
               </button>
-              <div v-else class="flex items-center gap-1 text-xs font-black text-green-600 px-2 py-1">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              <div
+                v-else
+                class="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2 shrink-0 min-h-[40px]"
+              >
+                <svg
+                  class="h-4 w-4 text-blue-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
-                <span>Active</span>
+                <span>Current Default</span>
               </div>
 
               <!-- Remove Manual Printer Button -->
@@ -185,10 +346,18 @@
         </div>
 
         <!-- Add Manual Wi-Fi IP Section -->
-        <div class="mt-6 rounded-2xl border border-dashed border-slate-300 p-4 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div
+          class="mt-6 rounded-2xl border border-dashed border-slate-300 p-4 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        >
           <div>
-            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">Add Wi-Fi Printer by IP Address</h4>
-            <p class="text-xs text-slate-500">Persists network IP to database and actively probes ports 9100/631</p>
+            <h4
+              class="text-xs font-bold uppercase tracking-wider text-slate-700"
+            >
+              Add Wi-Fi Printer by IP Address
+            </h4>
+            <p class="text-xs text-slate-500">
+              Persists network IP to database and actively probes ports 9100/631
+            </p>
           </div>
           <div class="flex items-center gap-2 w-full sm:w-auto">
             <input
@@ -203,43 +372,94 @@
               :disabled="!manualIp || isAddingPrinter"
               class="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition shrink-0 min-h-[44px]"
             >
-              <svg v-if="isAddingPrinter" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg
+                v-if="isAddingPrinter"
+                class="h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
-              <span>{{ isAddingPrinter ? 'Probing...' : 'Add Printer' }}</span>
+              <span>{{ isAddingPrinter ? "Probing..." : "Add Printer" }}</span>
             </button>
           </div>
         </div>
       </div>
 
       <!-- Feedback Notification Banner -->
-      <div v-if="notificationBanner" class="rounded-3xl p-4 text-white shadow-lg flex items-center justify-between" :class="notificationBanner.type === 'success' ? 'bg-emerald-600 shadow-emerald-600/20' : 'bg-rose-600 shadow-rose-600/20'">
+      <div
+        v-if="notificationBanner"
+        class="rounded-3xl p-4 text-white shadow-lg flex items-center justify-between"
+        :class="
+          notificationBanner.type === 'success'
+            ? 'bg-emerald-600 shadow-emerald-600/20'
+            : 'bg-rose-600 shadow-rose-600/20'
+        "
+      >
         <div class="flex items-center gap-3">
-          <svg class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          <svg
+            class="h-6 w-6 shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
-          <span class="text-sm font-bold">{{ notificationBanner.message }}</span>
+          <span class="text-sm font-bold">{{
+            notificationBanner.message
+          }}</span>
         </div>
-        <button @click="notificationBanner = null" class="text-xs font-bold opacity-80 hover:opacity-100">Dismiss</button>
+        <button
+          @click="notificationBanner = null"
+          class="text-xs font-bold opacity-80 hover:opacity-100"
+        >
+          Dismiss
+        </button>
       </div>
 
       <!-- Collapsible Virtual Software Drivers -->
-      <div v-if="virtualPrinters.length > 0" class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
+      <div
+        v-if="virtualPrinters.length > 0"
+        class="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-4"
+      >
         <button
           @click="showVirtual = !showVirtual"
           class="flex w-full items-center justify-between text-left"
         >
           <div>
-            <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+            <h3
+              class="text-sm font-bold text-slate-700 flex items-center gap-2"
+            >
               <span>Virtual Software Drivers (PDF / XPS / OneNote)</span>
-              <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{{ virtualPrinters.length }}</span>
+              <span
+                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                >{{ virtualPrinters.length }}</span
+              >
             </h3>
-            <p class="text-xs text-slate-400">Virtual print-to-file software drivers installed in Windows</p>
+            <p class="text-xs text-slate-400">
+              Virtual print-to-file software drivers installed in Windows
+            </p>
           </div>
-          <span class="text-xs font-bold text-blue-600">{{ showVirtual ? 'Hide' : 'Show' }}</span>
+          <span class="text-xs font-bold text-blue-600">{{
+            showVirtual ? "Hide" : "Show"
+          }}</span>
         </button>
 
-        <div v-if="showVirtual" class="space-y-2 pt-2 border-t border-slate-100">
+        <div
+          v-if="showVirtual"
+          class="space-y-2 pt-2 border-t border-slate-100"
+        >
           <div
             v-for="p in virtualPrinters"
             :key="p.id"
@@ -256,7 +476,12 @@
             >
               Set as Default
             </button>
-            <span v-else class="text-green-600 font-bold">Active Default</span>
+            <span v-else class="text-slate-700 font-bold flex items-center gap-1">
+              <svg class="h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Current Default
+            </span>
           </div>
         </div>
       </div>
@@ -265,40 +490,57 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useJobStore } from '../stores/jobStore';
-import InkLevelPanel from '../components/InkLevelPanel.vue';
+import { ref, computed, onMounted } from "vue";
+import { useJobStore } from "../stores/jobStore";
+import InkLevelPanel from "../components/InkLevelPanel.vue";
 
 export interface DiscoveredPrinter {
   id: string;
   name: string;
   makeAndModel?: string;
-  connectionType: 'USB' | 'WIFI_NETWORK' | 'IPP' | 'VIRTUAL';
+  connectionType: "USB" | "WIFI_NETWORK" | "IPP" | "VIRTUAL";
   uri: string;
   ipAddress: string | null;
   portName: string;
-  status: 'ONLINE' | 'OFFLINE' | 'DISCONNECTED';
+  status: "ONLINE" | "OFFLINE" | "DISCONNECTED";
   isDefault: boolean;
   isVirtual?: boolean;
 }
 
 const jobStore = useJobStore();
 const printers = ref<DiscoveredPrinter[]>([]);
-const activeDefaultPrinter = ref('');
+const activeDefaultPrinter = ref("");
 const selectedInspectionPrinter = ref<DiscoveredPrinter | null>(null);
 const isScanning = ref(false);
 const isAddingPrinter = ref(false);
 const isPrintingSwatch = ref(false);
 const lastScannedAt = ref<string | null>(null);
-const manualIp = ref('');
+const manualIp = ref("");
 const showVirtual = ref(false);
-const notificationBanner = ref<{ type: 'success' | 'error'; message: string } | null>(null);
+const notificationBanner = ref<{
+  type: "success" | "error";
+  message: string;
+} | null>(null);
 
-const physicalPrinters = computed(() => printers.value.filter((p) => !p.isVirtual));
-const virtualPrinters = computed(() => printers.value.filter((p) => p.isVirtual));
+const physicalPrinters = computed(() =>
+  printers.value.filter((p) => !p.isVirtual),
+);
+const virtualPrinters = computed(() =>
+  printers.value.filter((p) => p.isVirtual),
+);
+const defaultPrinterObj = computed(() => {
+  return printers.value.find(
+    (p) => p.name === activeDefaultPrinter.value || p.isDefault,
+  );
+});
+const defaultPrinterStatus = computed(() => {
+  return (
+    defaultPrinterObj.value?.status ||
+    (jobStore.printerStatus.isOnline ? "ONLINE" : "OFFLINE")
+  );
+});
 const activePrinterIp = computed(() => {
-  const target = physicalPrinters.value.find((p) => p.name === activeDefaultPrinter.value || p.isDefault);
-  return target?.ipAddress || null;
+  return defaultPrinterObj.value?.ipAddress || null;
 });
 
 onMounted(() => {
@@ -307,15 +549,20 @@ onMounted(() => {
 
 async function fetchPrinters() {
   try {
-    const res = await fetch('/api/operator/printers', { credentials: 'include' });
+    const res = await fetch("/api/operator/printers", {
+      credentials: "include",
+    });
     if (res.ok) {
       const data = await res.json();
       printers.value = data.printers || [];
-      const defaultFound = data.defaultPrinter || (printers.value.find((p) => p.isDefault)?.name || '');
+      const defaultFound =
+        data.defaultPrinter ||
+        printers.value.find((p) => p.isDefault)?.name ||
+        "";
       activeDefaultPrinter.value = defaultFound;
     }
   } catch (err) {
-    console.error('Failed to fetch printers:', err);
+    console.error("Failed to fetch printers:", err);
   }
 }
 
@@ -323,9 +570,9 @@ async function scanPrinters() {
   isScanning.value = true;
   notificationBanner.value = null;
   try {
-    const res = await fetch('/api/operator/printers/scan', {
-      method: 'POST',
-      credentials: 'include',
+    const res = await fetch("/api/operator/printers/scan", {
+      method: "POST",
+      credentials: "include",
     });
     if (res.ok) {
       const data = await res.json();
@@ -335,12 +582,16 @@ async function scanPrinters() {
       if (def) activeDefaultPrinter.value = def.name;
       jobStore.fetchPrinterStatus();
       notificationBanner.value = {
-        type: 'success',
+        type: "success",
         message: `Hardware scan completed: Found ${printers.value.length} printer(s) on USB and local subnet.`,
       };
     }
   } catch (err) {
-    notificationBanner.value = { type: 'error', message: 'Failed to scan for printers. Please verify network/USB connection.' };
+    notificationBanner.value = {
+      type: "error",
+      message:
+        "Failed to scan for printers. Please verify network/USB connection.",
+    };
   } finally {
     isScanning.value = false;
   }
@@ -348,11 +599,11 @@ async function scanPrinters() {
 
 async function assignDefault(printer: DiscoveredPrinter) {
   try {
-    const res = await fetch('/api/operator/printers/set-default', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/operator/printers/set-default", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ printerName: printer.name }),
-      credentials: 'include',
+      credentials: "include",
     });
     if (res.ok) {
       activeDefaultPrinter.value = printer.name;
@@ -360,10 +611,16 @@ async function assignDefault(printer: DiscoveredPrinter) {
         p.isDefault = p.id === printer.id;
       });
       await jobStore.fetchPrinterStatus();
-      notificationBanner.value = { type: 'success', message: `Assigned default printer to "${printer.name}"!` };
+      notificationBanner.value = {
+        type: "success",
+        message: `Assigned default printer to "${printer.name}"!`,
+      };
     }
   } catch (err) {
-    notificationBanner.value = { type: 'error', message: 'Failed to assign default printer.' };
+    notificationBanner.value = {
+      type: "error",
+      message: "Failed to assign default printer.",
+    };
   }
 }
 
@@ -371,23 +628,31 @@ async function testPrintSwatch() {
   isPrintingSwatch.value = true;
   notificationBanner.value = null;
   try {
-    const res = await fetch('/api/operator/printers/test-swatch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/operator/printers/test-swatch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ printerName: activeDefaultPrinter.value }),
-      credentials: 'include',
+      credentials: "include",
     });
     if (res.ok) {
       const data = await res.json();
       notificationBanner.value = {
-        type: 'success',
-        message: data.message || `Calibration swatch dispatched directly to ${activeDefaultPrinter.value}!`,
+        type: "success",
+        message:
+          data.message ||
+          `Calibration swatch dispatched directly to ${activeDefaultPrinter.value}!`,
       };
     } else {
-      notificationBanner.value = { type: 'error', message: 'Failed to dispatch test swatch.' };
+      notificationBanner.value = {
+        type: "error",
+        message: "Failed to dispatch test swatch.",
+      };
     }
   } catch {
-    notificationBanner.value = { type: 'error', message: 'Network error while dispatching calibration swatch.' };
+    notificationBanner.value = {
+      type: "error",
+      message: "Network error while dispatching calibration swatch.",
+    };
   } finally {
     isPrintingSwatch.value = false;
   }
@@ -400,30 +665,30 @@ async function addManualNetworkPrinter() {
   notificationBanner.value = null;
 
   try {
-    const res = await fetch('/api/operator/printers/add-manual', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/operator/printers/add-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ipAddress: ip }),
-      credentials: 'include',
+      credentials: "include",
     });
     const data = await res.json();
     if (res.ok && data.success) {
       await fetchPrinters();
       await jobStore.fetchPrinterStatus();
       notificationBanner.value = {
-        type: data.isOnline ? 'success' : 'error',
+        type: data.isOnline ? "success" : "error",
         message: data.message,
       };
-      manualIp.value = '';
+      manualIp.value = "";
     } else {
       notificationBanner.value = {
-        type: 'error',
-        message: data.error || 'Failed to add manual printer.',
+        type: "error",
+        message: data.error || "Failed to add manual printer.",
       };
     }
   } catch (err: any) {
     notificationBanner.value = {
-      type: 'error',
+      type: "error",
       message: `Network error: ${err.message}`,
     };
   } finally {
@@ -433,17 +698,26 @@ async function addManualNetworkPrinter() {
 
 async function deleteManualPrinter(id: string) {
   try {
-    const res = await fetch(`/api/operator/printers/manual/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
+    const res = await fetch(
+      `/api/operator/printers/manual/${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+        credentials: "include",
+      },
+    );
     if (res.ok) {
       await fetchPrinters();
       await jobStore.fetchPrinterStatus();
-      notificationBanner.value = { type: 'success', message: 'Manual printer removed.' };
+      notificationBanner.value = {
+        type: "success",
+        message: "Manual printer removed.",
+      };
     }
   } catch (err) {
-    notificationBanner.value = { type: 'error', message: 'Failed to remove manual printer.' };
+    notificationBanner.value = {
+      type: "error",
+      message: "Failed to remove manual printer.",
+    };
   }
 }
 </script>

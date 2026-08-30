@@ -86,7 +86,7 @@ export class CupsDriverService {
     const isOnline = reachability.isOnline;
     const message = isOnline
       ? `${printerName} is Ready`
-      : `${printerName} (Offline / Network Unreachable)`;
+      : `${printerName} is Offline (Check Cable / Power)`;
 
     return {
       isOnline,

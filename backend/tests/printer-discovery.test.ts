@@ -45,10 +45,16 @@ describe('Printer Auto-Discovery & Default Assignment Tests', { timeout: 20000 }
     expect(currentDefault).toBe(targetName);
   });
 
-  it('performs targeted reachability check without throwing', async () => {
+  it('performs targeted reachability check without throwing and handles underscored IPs', async () => {
     const reachability = await service.checkPrinterReachability('HP_Smart_Tank_670');
     expect(reachability).toHaveProperty('isOnline');
     expect(typeof reachability.isOnline).toBe('boolean');
+
+    // Test underscored IP name parsing
+    const underscoredReachability = await service.checkPrinterReachability('HP_Smart_Tank_192_168_1_249');
+    expect(underscoredReachability).toHaveProperty('isOnline');
+    expect(underscoredReachability.ipAddress).toBe('192.168.1.249');
+    expect(underscoredReachability.isOnline).toBe(false);
   });
 
   it('exposes scan and set-default routes via Fastify API', async () => {

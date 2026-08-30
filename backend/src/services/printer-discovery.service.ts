@@ -224,7 +224,7 @@ export class PrinterDiscoveryService {
     if (process.platform === 'win32') {
       try {
         const { stdout } = await execAsync(
-          `powershell -NoProfile -Command "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Printer' -or $_.PNPClass -eq 'USB' -or $_.Name -like '*Smart Tank*' -or $_.Name -like '*HP*' } | Select-Object -ExpandProperty Name"`
+          `powershell -NoProfile -Command "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Printer' -or $_.Service -eq 'usbprint' -or ($_.Name -like '*Smart Tank*' -and $_.PNPClass -ne 'System') -or ($_.Name -like '*DeskJet*' -or $_.Name -like '*LaserJet*') } | Select-Object -ExpandProperty Name"`
         );
         for (const line of stdout.split('\n')) {
           const trimmed = line.trim();
@@ -233,10 +233,12 @@ export class PrinterDiscoveryService {
       } catch {}
     } else {
       try {
-        const { stdout } = await execAsync('lsusb');
+        const { stdout } = await execAsync('lsusb 2>/dev/null || true');
         for (const line of stdout.split('\n')) {
-          const trimmed = line.trim();
-          if (trimmed) presentDevices.add(trimmed.toLowerCase());
+          const trimmed = line.trim().toLowerCase();
+          if (trimmed && (trimmed.includes('print') || trimmed.includes('03f0:') || trimmed.includes('smart tank'))) {
+            presentDevices.add(trimmed);
+          }
         }
       } catch {}
     }
@@ -251,42 +253,67 @@ export class PrinterDiscoveryService {
   async checkPrinterReachability(printerNameOrIp: string): Promise<{ isOnline: boolean; ipAddress: string | null }> {
     const clean = printerNameOrIp.trim();
 
-    // Check if IP is in name
-    const ipMatch = clean.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
-    let ip = ipMatch ? ipMatch[1] : null;
+    // 1. Check if IP is in name (supports standard dots "192.168.1.60" or underscores "192_168_1_60")
+    const ipMatch = clean.match(/(\d{1,3})[._](\d{1,3})[._](\d{1,3})[._](\d{1,3})/);
+    let ip: string | null = ipMatch ? `${ipMatch[1]}.${ipMatch[2]}.${ipMatch[3]}.${ipMatch[4]}` : null;
 
+    // 2. Check manual_printers database table
     if (!ip) {
       const db = getDatabase();
       const manualRow = db.prepare("SELECT ip_address FROM manual_printers WHERE name = ? OR id = ?").get(clean, clean) as { ip_address: string } | undefined;
-      if (manualRow) {
+      if (manualRow && manualRow.ip_address) {
         ip = manualRow.ip_address;
       }
     }
 
+    // 3. Check cached discovered printers
+    if (!ip && PrinterDiscoveryService.cachedPrinters) {
+      const matched = PrinterDiscoveryService.cachedPrinters.find(p => p.name === clean || p.id === clean);
+      if (matched && matched.ipAddress) {
+        ip = matched.ipAddress;
+      }
+    }
+
+    // 4. On Linux, inspect CUPS queue device URI for IP address
+    if (!ip && process.platform !== 'win32') {
+      try {
+        const { stdout } = await execAsync(`lpstat -v "${clean}" 2>/dev/null`);
+        const uriMatch = stdout.match(/device for [^:]+:\s*(.+)/i);
+        if (uriMatch) {
+          const uri = uriMatch[1].trim();
+          const ipInUri = uri.match(/:\/\/([^:/]+)/);
+          if (ipInUri && (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ipInUri[1]) || ipInUri[1].includes('.'))) {
+            ip = ipInUri[1];
+          }
+        }
+      } catch {}
+    }
+
+    // If an IP was resolved, probe network ports (631, 80, 9100)
     if (ip) {
       const isOnline = await this.probeNetworkPrinter(ip, 1500, 1);
       return { isOnline, ipAddress: ip };
     }
 
-    // USB / CUPS Queue status
+    // Direct USB / hardware bus status
     if (process.platform !== 'win32') {
-      try {
-        const { stdout } = await execAsync(`lpstat -p "${clean}"`);
-        const isIdleOrPrinting = stdout.includes('idle') || stdout.includes('printing') || stdout.includes('ready');
-        return { isOnline: isIdleOrPrinting, ipAddress: null };
-      } catch {
-        // Queue may not be registered yet, probe USB
-        const usbPrinters = await this.getPresentUsbPrinters();
-        const isPluggedIn = usbPrinters.size > 0;
-        return { isOnline: isPluggedIn, ipAddress: null };
-      }
+      const usbPrinters = await this.getPresentUsbPrinters();
+      return { isOnline: usbPrinters.size > 0, ipAddress: null };
     } else {
-      // Windows CIM status
+      // Windows Spooler & Hardware status
       try {
-        const psCmd = `powershell -NoProfile -Command "Get-CimInstance Win32_Printer -Filter \\"Name='${clean.replace(/'/g, "''")}'\\" | Select-Object -ExpandProperty WorkOffline"`;
+        const psCmd = `powershell -NoProfile -Command "$p = Get-CimInstance Win32_Printer -Filter \\"Name='${clean.replace(/'/g, "''")}'\\"; if ($p) { if ($p.PortName -match '^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$') { $p.PortName } else { [string]!$p.WorkOffline } } else { '' }"`;
         const { stdout } = await execAsync(psCmd);
-        const isOffline = stdout.trim().toLowerCase() === 'true';
-        return { isOnline: !isOffline, ipAddress: null };
+        const out = stdout.trim();
+        if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(out)) {
+          const isOnline = await this.probeNetworkPrinter(out, 1500, 1);
+          return { isOnline, ipAddress: out };
+        }
+        if (out.toLowerCase() === 'true') {
+          const usbPrinters = await this.getPresentUsbPrinters();
+          return { isOnline: usbPrinters.size > 0, ipAddress: null };
+        }
+        return { isOnline: false, ipAddress: null };
       } catch {
         const usbPrinters = await this.getPresentUsbPrinters();
         return { isOnline: usbPrinters.size > 0, ipAddress: null };

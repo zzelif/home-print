@@ -137,7 +137,7 @@
         ></span>
         <div class="min-w-0">
           <div class="text-xs font-black truncate" :class="jobStore.printerStatus.isOnline ? 'text-emerald-950' : 'text-rose-950'">
-            {{ jobStore.printerStatus.message || (jobStore.printerStatus.isOnline ? 'Printer Ready' : 'Printer Disconnected / Off') }}
+            {{ jobStore.printerStatus.activePrinterName || (jobStore.printerStatus.isOnline ? 'Printer Ready' : 'Printer Offline') }}
           </div>
           <div class="text-[10px] font-bold uppercase tracking-wider" :class="jobStore.printerStatus.isOnline ? 'text-emerald-700' : 'text-rose-700'">
             {{ jobStore.printerStatus.isOnline ? 'Online (Ready to Print)' : 'Offline (Check Cable / Power)' }}
