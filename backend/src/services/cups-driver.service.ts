@@ -223,7 +223,7 @@ export class CupsDriverService {
     // 3. Dispatch via standard Linux CUPS spooler with raster filters
     try {
       const command = `lp -d "${activeQueueName}" -n ${copies} -o ${mediaArg} -o ${mediaTypeArg} -o ${qualityArg} ${duplexArg} ${pageRangeArg} "${pdfPath}"`.trim();
-      const { stdout } = await execAsync(command);
+      const { stdout } = await execAsync(command, { timeout: 5000 });
       const match = stdout.match(/request id is ([^\s]+)/);
       const cupsJobId = match ? match[1] : 'JOB_SUBMITTED';
       return { cupsJobId, message: `Dispatched to CUPS queue ${activeQueueName}` };
@@ -232,8 +232,9 @@ export class CupsDriverService {
 
       // 4. Direct IPP Protocol Fallback via ipptool over Port 631 (True IPP Everywhere Print-Job)
       if (targetIp) {
+        let ippScriptPath: string | null = null;
         try {
-          const ippScriptPath = path.join(os.tmpdir(), `job_${Date.now()}.ipp`);
+          ippScriptPath = path.join(os.tmpdir(), `job_${Date.now()}.ipp`);
           const ippScriptContent = `
 {
   VERSION 2.0
@@ -250,7 +251,7 @@ export class CupsDriverService {
 }
 `.trim();
           await fs.writeFile(ippScriptPath, ippScriptContent);
-          await execAsync(`ipptool -v -t "ipp://${targetIp}:631/ipp/print" "${ippScriptPath}"`);
+          await execAsync(`ipptool -v -t -T 4 "ipp://${targetIp}:631/ipp/print" "${ippScriptPath}"`, { timeout: 4000 });
           await fs.unlink(ippScriptPath).catch(() => {});
 
           return {
@@ -258,6 +259,9 @@ export class CupsDriverService {
             message: `Dispatched directly to ${printer} via IPP Everywhere protocol (Port 631)`,
           };
         } catch (ippErr: any) {
+          if (ippScriptPath) {
+            await fs.unlink(ippScriptPath).catch(() => {});
+          }
           throw new Error(`Print dispatch failed: CUPS error (${cupsErr.message}) and Direct IPP protocol error (${ippErr.message})`);
         }
       }

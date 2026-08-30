@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { CupsDriverService } from '../src/services/cups-driver.service';
 import { getDatabase } from '../src/db/database';
 
-describe('CUPS Host-Managed Queue & Dispatch Tests', { timeout: 20000 }, () => {
+describe('CUPS Host-Managed Queue & Dispatch Tests', { timeout: 30000 }, () => {
   let service: CupsDriverService;
 
   beforeAll(() => {

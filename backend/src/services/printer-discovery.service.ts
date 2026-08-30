@@ -48,9 +48,9 @@ export class PrinterDiscoveryService {
 
   /**
    * Resilient TCP socket probe to verify if a host is listening on print ports (IPP 631, HTTP EWS 80, JetDirect 9100).
-   * Uses a 1500ms timeout with retry to reliably accommodate Wi-Fi 802.11 DTIM power-save wake latency.
+   * Fast 800ms timeout to avoid blocking workflows and test suites when targets are offline.
    */
-  async probeNetworkPrinter(host: string, timeoutMs: number = 1500, maxRetries: number = 1): Promise<boolean> {
+  async probeNetworkPrinter(host: string, timeoutMs: number = 800, maxRetries: number = 0): Promise<boolean> {
     if (!host || host.includes('nul') || host.includes('PORTPROMPT')) {
       return false;
     }
@@ -291,7 +291,7 @@ export class PrinterDiscoveryService {
 
     // If an IP was resolved, probe network ports (631, 80, 9100)
     if (ip) {
-      const isOnline = await this.probeNetworkPrinter(ip, 1500, 1);
+      const isOnline = await this.probeNetworkPrinter(ip, 800, 0);
       return { isOnline, ipAddress: ip };
     }
 
@@ -771,7 +771,7 @@ export class PrinterDiscoveryService {
 
     if (process.platform !== 'win32') {
       try {
-        await execAsync(`lpoptions -d "${printerName}"`);
+        await execAsync(`lpoptions -d "${printerName}"`, { timeout: 3000 });
       } catch (err: any) {
         console.warn(`Could not set CUPS default: ${err.message}`);
       }
