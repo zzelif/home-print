@@ -55,11 +55,69 @@ export const PAPER_DIMENSIONS_PT: Record<
   "5R": { width: 360.0, height: 504.0, name: "5R Photo (5 x 7 in)" },
 };
 
+/**
+ * Maps all Unicode typographic characters, ligatures, symbols, and formatting marks
+ * into safe WinAnsi (standard PDF Helvetica) characters to prevent pdf-lib encoding crashes.
+ */
+export function sanitizeWinAnsi(text: string): string {
+  if (!text) return "";
+  return (
+    text
+      // Typographic Ligatures
+      .replace(/\uFB00/g, "ff")
+      .replace(/\uFB01/g, "fi")
+      .replace(/\uFB02/g, "fl")
+      .replace(/\uFB03/g, "ffi")
+      .replace(/\uFB04/g, "ffl")
+      .replace(/\uFB05/g, "st")
+      .replace(/\uFB06/g, "st")
+      .replace(/[\u00C6\u01E2\u01FC]/g, "AE")
+      .replace(/[\u00E6\u01E3\u01FD]/g, "ae")
+      .replace(/\u0152/g, "OE")
+      .replace(/\u0153/g, "oe")
+
+      // Smart Quotes, Apostrophes & Primes
+      .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+      .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036\u00AB\u00BB]/g, '"')
+
+      // Dashes & Hyphens
+      .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
+      .replace(/\u00AD/g, "") // Soft hyphen
+
+      // Bullets & List Markers
+      .replace(
+        /[\u2022\u2023\u25E6\u2043\u2219\u25AA\u25AB\u25CF\u25CB]/g,
+        "* ",
+      )
+
+      // Currency & Commercial
+      .replace(/\u20B1/g, "PHP ") // Philippine Peso
+      .replace(/\u20AC/g, "EUR ")
+      .replace(/\u00A3/g, "GBP ")
+      .replace(/\u00A5/g, "JPY ")
+      .replace(/\u2122/g, "(TM)")
+      .replace(/\u00A9/g, "(C)")
+      .replace(/\u00AE/g, "(R)")
+      .replace(/\u2026/g, "...") // Ellipsis
+      .replace(/\u00B0/g, " deg") // Degree
+
+      // Spacing
+      .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ")
+
+      // Final pass: replace any remaining character > 255 with '?'
+      .replace(/[^\x00-\xFF]/g, "?")
+  );
+}
+
 export class DocumentConverterService {
   private outputDir = path.join(process.cwd(), "cache", "converted");
 
   async ensureOutputDir(): Promise<void> {
     await fs.mkdir(this.outputDir, { recursive: true });
+  }
+
+  sanitizeWinAnsi(text: string): string {
+    return sanitizeWinAnsi(text);
   }
 
   /**
@@ -89,60 +147,6 @@ export class DocumentConverterService {
       } catch {}
     }
     return null;
-  }
-
-  /**
-   * Maps all Unicode typographic characters, ligatures, symbols, and formatting marks
-   * into safe WinAnsi (standard PDF Helvetica) characters to prevent pdf-lib encoding crashes.
-   */
-  sanitizeWinAnsi(text: string): string {
-    if (!text) return "";
-    return (
-      text
-        // Typographic Ligatures
-        .replace(/\uFB00/g, "ff")
-        .replace(/\uFB01/g, "fi")
-        .replace(/\uFB02/g, "fl")
-        .replace(/\uFB03/g, "ffi")
-        .replace(/\uFB04/g, "ffl")
-        .replace(/\uFB05/g, "st")
-        .replace(/\uFB06/g, "st")
-        .replace(/[\u00C6\u01E2\u01FC]/g, "AE")
-        .replace(/[\u00E6\u01E3\u01FD]/g, "ae")
-        .replace(/\u0152/g, "OE")
-        .replace(/\u0153/g, "oe")
-
-        // Smart Quotes, Apostrophes & Primes
-        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
-        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036\u00AB\u00BB]/g, '"')
-
-        // Dashes & Hyphens
-        .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
-        .replace(/\u00AD/g, "") // Soft hyphen
-
-        // Bullets & List Markers
-        .replace(
-          /[\u2022\u2023\u25E6\u2043\u2219\u25AA\u25AB\u25CF\u25CB]/g,
-          "* ",
-        )
-
-        // Currency & Commercial
-        .replace(/\u20B1/g, "PHP ") // Philippine Peso
-        .replace(/\u20AC/g, "EUR ")
-        .replace(/\u00A3/g, "GBP ")
-        .replace(/\u00A5/g, "JPY ")
-        .replace(/\u2122/g, "(TM)")
-        .replace(/\u00A9/g, "(C)")
-        .replace(/\u00AE/g, "(R)")
-        .replace(/\u2026/g, "...") // Ellipsis
-        .replace(/\u00B0/g, " deg") // Degree
-
-        // Spacing
-        .replace(/[\u00A0\u2000-\u200B\u202F\u205F\u3000]/g, " ")
-
-        // Final pass: replace any remaining character > 255 with '?'
-        .replace(/[^\x00-\xFF]/g, "?")
-    );
   }
 
   /**

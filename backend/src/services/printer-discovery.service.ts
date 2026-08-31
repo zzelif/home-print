@@ -650,8 +650,39 @@ export class PrinterDiscoveryService {
       }
     }
 
+    // 4. Strict Deduplication by IP Address and Hardware Identity
+    const ipMap = new Map<string, DiscoveredPrinter>();
+    const nonIpPrinters: DiscoveredPrinter[] = [];
+
+    for (const p of printers) {
+      if (p.ipAddress) {
+        const existing = ipMap.get(p.ipAddress);
+        if (!existing) {
+          ipMap.set(p.ipAddress, { ...p });
+        } else {
+          // Upgrade status if current is online
+          if (existing.status !== 'ONLINE' && p.status === 'ONLINE') {
+            existing.status = 'ONLINE';
+          }
+          // Prefer descriptive model name over raw underscore string
+          if (p.name.includes('(') && !existing.name.includes('(')) {
+            existing.name = p.name;
+            existing.makeAndModel = p.makeAndModel;
+          }
+        }
+      } else {
+        // Non-IP printer (USB / Virtual): deduplicate by clean lowercase name
+        const cleanName = p.name.toLowerCase().trim();
+        if (!nonIpPrinters.some(existing => existing.name.toLowerCase().trim() === cleanName)) {
+          nonIpPrinters.push(p);
+        }
+      }
+    }
+
+    const mergedPrinters: DiscoveredPrinter[] = [...Array.from(ipMap.values()), ...nonIpPrinters];
+
     // Prioritize Physical Printers over Virtual Drivers
-    printers.sort((a, b) => {
+    mergedPrinters.sort((a, b) => {
       if (a.isVirtual && !b.isVirtual) return 1;
       if (!a.isVirtual && b.isVirtual) return -1;
       if (a.status === 'ONLINE' && b.status !== 'ONLINE') return -1;
@@ -662,8 +693,8 @@ export class PrinterDiscoveryService {
     // STRICT SINGLE DEFAULT RESOLUTION
     let defaultAssigned = false;
     if (activeDefaultName) {
-      for (const p of printers) {
-        if (p.name === activeDefaultName || p.id === activeDefaultName) {
+      for (const p of mergedPrinters) {
+        if (p.name === activeDefaultName || p.id === activeDefaultName || (p.ipAddress && activeDefaultName.includes(p.ipAddress))) {
           p.isDefault = true;
           defaultAssigned = true;
           break;
@@ -671,11 +702,11 @@ export class PrinterDiscoveryService {
       }
     }
 
-    if (!defaultAssigned && printers.length > 0) {
+    if (!defaultAssigned && mergedPrinters.length > 0) {
       // Pick first online physical printer (preferred HP Smart Tank)
-      const preferred = printers.find(p => !p.isVirtual && p.status === 'ONLINE') ||
-                        printers.find(p => p.name.toLowerCase().includes('smart tank')) ||
-                        printers[0];
+      const preferred = mergedPrinters.find(p => !p.isVirtual && p.status === 'ONLINE') ||
+                        mergedPrinters.find(p => p.name.toLowerCase().includes('smart tank')) ||
+                        mergedPrinters[0];
       preferred.isDefault = true;
       db.prepare(`
         INSERT INTO system_settings (key, value, updated_at) 
@@ -684,9 +715,9 @@ export class PrinterDiscoveryService {
       `).run(preferred.name);
     }
 
-    PrinterDiscoveryService.cachedPrinters = printers;
+    PrinterDiscoveryService.cachedPrinters = mergedPrinters;
     PrinterDiscoveryService.lastScanTime = Date.now();
-    return printers;
+    return mergedPrinters;
   }
 
   /**

@@ -1210,6 +1210,12 @@ async function dispatchDocumentPrint() {
             paperSize: paperSize.value,
             isDuplex: duplexMode.value !== "ONE_SIDED",
           },
+          layout: {
+            copies: copies.value,
+            pageRange: pageRangeInput.value,
+            fitMode: fitMode.value,
+            orientation: orientation.value,
+          },
           options: {
             pricingMode: pricingMode.value,
             pageRange: pageRangeInput.value,

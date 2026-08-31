@@ -71,8 +71,9 @@ The primary operator of this system is non-technical, accessing the web OS from 
 ## 6. Document Conversion, Typography & SQL Standards
 
 1. **WinAnsi & Typographic Ligature Sanitization Invariant**: All vector PDF rendering using standard Helvetica/Times fonts must pass raw text through `sanitizeWinAnsi` to decompose ligatures (`ﬃ`, `ﬀ`, `ﬁ`, `ﬂ`, `ﬄ`), curly quotes, em-dashes, and currency symbols (`₱`) before font metric calculations or text drawing, preventing `WinAnsi cannot encode` runtime crashes.
-2. **Explicit SQL Table Qualification in Joins**: Every SQL query joining multiple tables (`job_orders`, `products`, `job_files`) must explicitly qualify filter columns (`job_orders.created_at`, `j.created_at`) to prevent ambiguous column runtime errors across dynamic date ranges.
-3. **Office OpenXML Central Directory Standard**: Word and Office archives (`.docx`, `.pptx`) must be decompressed using ZIP Central Directory headers (`0x02014b50`) to guarantee reliable text extraction even when local header sizes are zeroed by streaming bit flags.
+2. **Official ID Nameplate & Typography Sanitization**: When ID nameplates (e.g. Civil Service Commission 2x2 with applicant name) are enabled, the vector engine must render a solid white bounding box docked at the bottom ~20% of the slot, auto-scale font metrics to prevent text clipping, and pass all strings through `sanitizeWinAnsi`.
+3. **Explicit SQL Table Qualification in Joins**: Every SQL query joining multiple tables (`job_orders`, `products`, `job_files`) must explicitly qualify filter columns (`job_orders.created_at`, `j.created_at`) to prevent ambiguous column runtime errors across dynamic date ranges.
+4. **Office OpenXML Central Directory Standard**: Word and Office archives (`.docx`, `.pptx`) must be decompressed using ZIP Central Directory headers (`0x02014b50`) to guarantee reliable text extraction even when local header sizes are zeroed by streaming bit flags.
 
 ---
 
@@ -92,6 +93,7 @@ The primary operator of this system is non-technical, accessing the web OS from 
 
 1. **Unified Multi-File Collation**: When multiple images or documents are uploaded simultaneously (e.g. 15 customer photos in a single order), the system must collate all files into a single multi-page job order with per-page analysis rather than fragmenting into individual job orders, providing unified previews and 1-click batch hardware spooling.
 2. **Dynamic Paper & Orientation Scaling**: Full-page photo rendering must eliminate artificial downscaling caps, dynamically adapting coordinates to physical paper dimensions (4R, 5R, A4, Letter, Long, Legal) and Portrait $\leftrightarrow$ Landscape orientations with auto-orientation detection.
+3. **Dynamic N-Up Auto-Tiling & Packing Invariant**: Layout Studio must support automated N-up repeating and packing (1 to 24 copies per sheet, including asymmetric configurations like 5-in-a-page) with dynamic coordinate math across all paper formats (4R, 5R, A4, Letter, Long, Legal). Operators must never be forced to use external software (e.g. MS Word/Photoshop) to tile photos or documents.
 
 ---
 

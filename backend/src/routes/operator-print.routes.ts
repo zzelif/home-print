@@ -79,8 +79,12 @@ export const operatorPrintRoutes: FastifyPluginAsync = async (fastify: FastifyIn
           showCutLines: state.options?.showCutLines ?? state.layout?.showCutLines ?? true,
           zeroGap: state.options?.zeroGap ?? state.layout?.zeroGap ?? true,
           mirrorFlip: state.options?.mirror ?? state.layout?.mirrorFlip ?? false,
-          cropTransform: state.layout?.cropTransform || { scale: 1.0, offsetX: 0, offsetY: 0 },
+          cropTransform: state.layout?.cropTransform || { scale: 1.0, offsetX: 0, offsetY: 0, rotation: 0 },
           boxes: state.layout?.boxes,
+          tileCount: state.layout?.tileCount,
+          customGrid: state.layout?.customGrid,
+          enhancement: state.layout?.enhancement,
+          nameplateConfig: state.layout?.nameplateConfig,
         },
         costing: {
           materialCost: state.costing?.materialCost || 3.5,

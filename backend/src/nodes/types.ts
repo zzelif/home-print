@@ -4,7 +4,7 @@ export type IngestionSource = 'QR_DROP' | 'HOT_FOLDER' | 'MANUAL_UI';
 export type JobStatus = 'UPLOADED' | 'IN_LAYOUT' | 'READY_TO_PRINT' | 'PRINTING' | 'COMPLETED' | 'CANCELLED';
 export type PaperSize = '4R' | 'A4' | 'Letter' | 'Legal';
 export type PaperType = 'GLOSSY_PHOTO' | 'MATTE_PHOTO' | 'PLAIN_PAPER';
-export type PresetId = 'SET_1' | 'SET_2' | 'SET_3' | 'SET_4' | 'SET_1_RUSH' | 'SET_2_2X2' | 'SET_3_COMBO' | 'SET_4_PASSPORT' | 'POLAROID' | 'FREE';
+export type PresetId = 'SET_1' | 'SET_2' | 'SET_3' | 'SET_4' | 'SET_1_RUSH' | 'SET_2_2X2' | 'SET_3_COMBO' | 'SET_4_PASSPORT' | 'POLAROID' | 'FREE' | 'FULL_PAGE' | 'GRID_2X2' | 'GRID_2X3' | string;
 export type JobType = 'PHOTO_RUSH_ID' | 'DOCUMENT' | 'CUSTOM_PHOTO';
 
 export interface PhotoBoundingBox {
@@ -14,6 +14,15 @@ export interface PhotoBoundingBox {
   widthMm: number;
   heightMm: number;
   label?: string;
+  photoIndex?: number;
+  isPassport?: boolean;
+  nameplate?: {
+    enabled: boolean;
+    name?: string;
+    subtext?: string;
+    position?: 'BOTTOM' | 'TOP';
+    style?: 'CSC_OFFICIAL' | 'WHITE_BAR' | 'SIGNATURE_LINE';
+  };
 }
 
 export interface SharedPrintJobState {
@@ -57,6 +66,23 @@ export interface SharedPrintJobState {
       rotation?: number;
     };
     boxes?: PhotoBoundingBox[];
+    tileCount?: number;
+    customGrid?: {
+      cols: number;
+      rows: number;
+    };
+    enhancement?: {
+      brightness?: number;
+      contrast?: number;
+      grayscale?: boolean;
+      filterPreset?: string;
+    };
+    nameplateConfig?: {
+      enabled: boolean;
+      name: string;
+      subtext?: string;
+      style?: 'CSC_OFFICIAL' | 'WHITE_BAR' | 'SIGNATURE_LINE';
+    };
   };
   costing: {
     materialCost: number;

@@ -270,6 +270,11 @@ export class CupsDispatchNode implements GraphNode<SharedPrintJobState, SharedPr
       throw new Error(`Printer "${printerStatus.activePrinterName}" is Offline or Disconnected. Please plug in USB cable or turn printer ON.`);
     }
 
+    // If the PDF compositor already extracted a specific page range into a subset PDF,
+    // do not pass the original pageRange to CUPS/Spooler to prevent 0-page double-filtering
+    const isAlreadyTrimmedSubset = state.preflightVerdict.generatedPdfPath.includes('_subset_');
+    const effectivePageRange = isAlreadyTrimmedSubset ? undefined : state.layout.pageRange;
+
     const { cupsJobId } = await this.cupsDriver.dispatchJob(
       state.preflightVerdict.generatedPdfPath,
       {
@@ -277,7 +282,7 @@ export class CupsDispatchNode implements GraphNode<SharedPrintJobState, SharedPr
         paperType: state.product.paperType,
         copies: state.layout.copies,
         isDuplex: state.product.isDuplex,
-        pageRange: state.layout.pageRange,
+        pageRange: effectivePageRange,
       }
     );
 

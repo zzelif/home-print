@@ -36,6 +36,10 @@ Evaluate every frontend view and component against these four non-negotiable rul
 - The 4R canvas preview must render the exact layout coordinates for all presets (`SET_1`, `SET_2`, `SET_3`, `SET_4`, and `POLAROID`).
 - Prominently display the DPI Traffic Light badge (*Crisp & Clear* / *Slightly Soft* / *Too Blurry*) next to the customer photo dropzone.
 
+### Rule 4.1: Automated Multi-Copy Tiling & 1-Tap ID Nameplates
+- Provide 1-tap quick-chip selectors for repeat counts (`1x`, `2x`, `3x`, `4x`, `5x`, `6x`, `8x`, `9x`, `12x`) without requiring manual coordinate editing or external software (like MS Word).
+- For ID nameplates (Civil Service / PRC / Visa), include a 1-tap `[ ALL CAPS ]` formatter and live slot preview with high-contrast text and signature line support.
+
 ### Rule 5: Multi-Device Responsive Viewports (Mobile & Tablet)
 - Viewport must be locked against accidental double-tap zoom: `user-scalable=no`.
 - Sticky bottom actions on mobile screens (`h-14` / `56px+` minimum height).

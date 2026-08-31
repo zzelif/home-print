@@ -11,7 +11,7 @@
         <div class="min-w-0">
           <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">Print Layout Studio</h1>
           <p class="text-xs text-slate-500 font-medium truncate">
-            Full-Page Photo & Rush ID Customization • {{ layoutStore.paperSize }} ({{ layoutStore.orientation }})
+            Automated Multi-Copy Tiling, CSC ID Nameplates & Photo Customization • {{ layoutStore.paperSize }} ({{ layoutStore.orientation }})
           </p>
         </div>
       </div>
@@ -85,7 +85,7 @@
             </svg>
           </div>
           <div>
-            <h3 class="text-lg font-black text-slate-900">Printer Not Ready</h3>
+            <h3 class="text-lg font-black text-slate-900">Printer Notice</h3>
             <p class="text-xs text-slate-500 font-medium">Hardware Connection Check</p>
           </div>
         </div>
@@ -209,34 +209,314 @@
           </div>
         </div>
 
-        <!-- Multi-Photo Order Gallery Switcher (When Job Has Multiple Images) -->
-        <div v-if="orderPhotos.length > 1" class="rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Order Photos ({{ orderPhotos.length }})</h3>
-            <router-link
-              v-if="currentJobId"
-              :to="`/document?jobId=${currentJobId}`"
-              class="text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1"
-            >
-              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Doc Station Batch Print
-            </router-link>
+        <!-- Studio Mode Selector Tabs (Mother-Centric Navigation) -->
+        <div class="rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Layout Studio Tools</h3>
+            <span class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+              {{ activeStudioTab === 'PRESETS' ? 'Packages' : activeStudioTab === 'AUTO_TILE' ? 'Smart N-Up' : activeStudioTab === 'NAMEPLATE' ? 'Official ID' : 'Touch-Up' }}
+            </span>
           </div>
-          <div class="flex items-center gap-2 overflow-x-auto pb-1">
+
+          <!-- Navigation Pills -->
+          <div class="grid grid-cols-4 gap-1 rounded-2xl bg-slate-100 p-1">
             <button
-              v-for="(photo, idx) in orderPhotos"
-              :key="photo.id"
               type="button"
-              @click="switchSelectedPhoto(idx)"
+              @click="activeStudioTab = 'PRESETS'"
               :class="[
-                selectedPhotoIndex === idx ? 'ring-2 ring-blue-600 border-blue-600' : 'border-slate-200 opacity-70 hover:opacity-100',
-                'h-12 w-12 rounded-xl border overflow-hidden shrink-0 bg-slate-100 transition'
+                activeStudioTab === 'PRESETS' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900',
+                'py-2 px-1 text-center text-[11px] rounded-xl transition'
               ]"
             >
-              <img :src="`/api/operator/files/${photo.id}`" class="h-full w-full object-cover" :alt="`Photo ${idx + 1}`" />
+              Packages
             </button>
+            <button
+              type="button"
+              @click="activeStudioTab = 'AUTO_TILE'"
+              :class="[
+                activeStudioTab === 'AUTO_TILE' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900',
+                'py-2 px-1 text-center text-[11px] rounded-xl transition'
+              ]"
+            >
+              Smart Tile
+            </button>
+            <button
+              type="button"
+              @click="activeStudioTab = 'NAMEPLATE'"
+              :class="[
+                activeStudioTab === 'NAMEPLATE' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900',
+                'py-2 px-1 text-center text-[11px] rounded-xl transition'
+              ]"
+            >
+              CSC ID Name
+            </button>
+            <button
+              type="button"
+              @click="activeStudioTab = 'TOUCH_UP'"
+              :class="[
+                activeStudioTab === 'TOUCH_UP' ? 'bg-white text-blue-900 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900',
+                'py-2 px-1 text-center text-[11px] rounded-xl transition'
+              ]"
+            >
+              Touch-Up
+            </button>
+          </div>
+
+          <!-- TAB 1: PHOTO PRESETS & PACKAGES -->
+          <div v-if="activeStudioTab === 'PRESETS'" class="space-y-3">
+            <div class="grid grid-cols-2 gap-2 sm:gap-2.5">
+              <button
+                v-for="preset in standardPresets"
+                :key="preset.id"
+                type="button"
+                @click="selectPreset(preset.id)"
+                :class="[
+                  layoutStore.activePreset === preset.id
+                    ? 'border-blue-600 bg-blue-50/60 text-blue-900 ring-2 ring-blue-600'
+                    : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50',
+                  'flex flex-col items-start rounded-2xl border p-2.5 sm:p-3 text-left transition'
+                ]"
+              >
+                <span class="text-xs font-bold">{{ preset.title }}</span>
+                <span class="text-[11px] font-medium text-blue-700">{{ preset.badge }}</span>
+                <span class="text-[10px] text-slate-400">{{ preset.desc }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- TAB 2: SMART AUTO-TILE (N-UP / 5-IN-A-PAGE / REPEAT COPIES) -->
+          <div v-if="activeStudioTab === 'AUTO_TILE'" class="space-y-3.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700">Repeat Copies per Sheet</span>
+              <span class="text-xs font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                {{ layoutStore.tileCount }} Photos on {{ layoutStore.paperSize }}
+              </span>
+            </div>
+
+            <!-- 1-Tap Quick-Chips -->
+            <div class="grid grid-cols-4 gap-1.5">
+              <button
+                v-for="count in [1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 16]"
+                :key="count"
+                type="button"
+                @click="layoutStore.setTileCount(count)"
+                :class="[
+                  layoutStore.tileCount === count && (layoutStore.layoutMode === 'AUTO_TILE' || layoutStore.activePreset === `TILE_${count}`)
+                    ? 'bg-blue-600 text-white font-black shadow-md'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold',
+                  'py-2 px-2 rounded-xl text-xs text-center transition'
+                ]"
+              >
+                {{ count === 1 ? '1x Full' : count === 5 ? '5x (Hot!)' : `${count}x` }}
+              </button>
+            </div>
+
+            <!-- Special Options for 5-in-a-Page Packing -->
+            <div v-if="layoutStore.tileCount === 5" class="p-3 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-2">
+              <span class="text-[11px] font-bold text-blue-900 block">5-Photo Arrangement Style:</span>
+              <div class="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  @click="layoutStore.tileStrategy = 'BALANCED'"
+                  :class="[
+                    layoutStore.tileStrategy === 'BALANCED' ? 'bg-blue-600 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200',
+                    'py-1.5 px-1.5 text-[11px] rounded-xl transition text-center'
+                  ]"
+                >
+                  3 Rows (2+2+1)
+                </button>
+                <button
+                  type="button"
+                  @click="layoutStore.tileStrategy = 'BALANCED_2ROW'"
+                  :class="[
+                    layoutStore.tileStrategy === 'BALANCED_2ROW' ? 'bg-blue-600 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200',
+                    'py-1.5 px-1.5 text-[11px] rounded-xl transition text-center'
+                  ]"
+                >
+                  2 Rows (3+2)
+                </button>
+                <button
+                  type="button"
+                  @click="layoutStore.tileStrategy = 'HERO_GRID'"
+                  :class="[
+                    layoutStore.tileStrategy === 'HERO_GRID' ? 'bg-blue-600 text-white font-bold' : 'bg-white text-slate-700 border border-slate-200',
+                    'py-1.5 px-1.5 text-[11px] rounded-xl transition text-center'
+                  ]"
+                >
+                  1 Hero + 4 Grid
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Matrix Grid Controls -->
+            <div class="pt-2 border-t border-slate-100 space-y-2">
+              <span class="text-[11px] font-bold text-slate-500 block">Custom Matrix Grid (Cols × Rows)</span>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-slate-600 font-medium">Cols:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="6"
+                    v-model.number="layoutStore.customCols"
+                    @change="layoutStore.setCustomGrid(layoutStore.customCols, layoutStore.customRows)"
+                    class="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-center"
+                  />
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-slate-600 font-medium">Rows:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="6"
+                    v-model.number="layoutStore.customRows"
+                    @change="layoutStore.setCustomGrid(layoutStore.customCols, layoutStore.customRows)"
+                    class="w-full rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-bold text-center"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: CSC & OFFICIAL ID NAMEPLATE OVERLAY -->
+          <div v-if="activeStudioTab === 'NAMEPLATE'" class="space-y-3.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">Official Government ID Nameplate</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" v-model="layoutStore.nameplate.enabled" class="sr-only peer" />
+                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+
+            <div v-if="layoutStore.nameplate.enabled" class="space-y-3 pt-1">
+              <!-- Name Input with 1-Tap All Caps -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-bold text-slate-600">Applicant Full Name (e.g. SURNAME, FIRST NAME M.I.)</label>
+                  <button
+                    type="button"
+                    @click="layoutStore.formatNameUpperCase"
+                    class="text-[10px] font-bold text-blue-600 hover:underline"
+                  >
+                    [ ALL CAPS ]
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  v-model="layoutStore.nameplate.name"
+                  placeholder="DELA CRUZ, JUAN A."
+                  @input="layoutStore.formatNameUpperCase"
+                  class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <!-- Sub-label Input -->
+              <div class="space-y-1">
+                <label class="text-[11px] font-bold text-slate-600">Sub-label / Purpose (Optional)</label>
+                <input
+                  type="text"
+                  v-model="layoutStore.nameplate.subtext"
+                  placeholder="CIVIL SERVICE EXAM / PRC / PASSPORT"
+                  @input="layoutStore.formatNameUpperCase"
+                  class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-bold text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <!-- Style Selector -->
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-bold text-slate-600 block">Nameplate Format Style</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    @click="layoutStore.nameplate.style = 'CSC_OFFICIAL'"
+                    :class="[
+                      layoutStore.nameplate.style === 'CSC_OFFICIAL' ? 'bg-blue-50 border-blue-500 text-blue-900 font-bold ring-1 ring-blue-500' : 'border-slate-200 text-slate-700 bg-white',
+                      'p-2 rounded-xl border text-[11px] text-left transition'
+                    ]"
+                  >
+                    CSC Standard Box
+                  </button>
+                  <button
+                    type="button"
+                    @click="layoutStore.nameplate.style = 'SIGNATURE_LINE'"
+                    :class="[
+                      layoutStore.nameplate.style === 'SIGNATURE_LINE' ? 'bg-blue-50 border-blue-500 text-blue-900 font-bold ring-1 ring-blue-500' : 'border-slate-200 text-slate-700 bg-white',
+                      'p-2 rounded-xl border text-[11px] text-left transition'
+                    ]"
+                  >
+                    With Signature Line
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] text-slate-500">
+              Enable to automatically embed a white name box at the bottom of 2x2 or passport photos as required by Philippine Civil Service & government agencies.
+            </div>
+          </div>
+
+          <!-- TAB 4: 1-TAP PHOTO TOUCH-UP & FILTERS -->
+          <div v-if="activeStudioTab === 'TOUCH_UP'" class="space-y-3.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">1-Tap Photo Quick Enhancements</span>
+              <button
+                type="button"
+                @click="layoutStore.resetEnhancements"
+                class="text-[11px] font-bold text-blue-600 hover:underline"
+              >
+                Reset Normal
+              </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                v-for="flt in filterOptions"
+                :key="flt.id"
+                type="button"
+                @click="layoutStore.applyFilterPreset(flt.id)"
+                :class="[
+                  layoutStore.enhancement.filterPreset === flt.id
+                    ? 'border-blue-600 bg-blue-50 text-blue-900 font-bold ring-2 ring-blue-600'
+                    : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50',
+                  'p-2.5 rounded-2xl border text-left transition'
+                ]"
+              >
+                <div class="text-xs font-bold">{{ flt.title }}</div>
+                <div class="text-[10px] text-slate-400">{{ flt.desc }}</div>
+              </button>
+            </div>
+
+            <!-- Brightness & Contrast Sliders -->
+            <div class="pt-2 border-t border-slate-100 space-y-3">
+              <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold text-slate-700">
+                  <span>Brightness Exposure</span>
+                  <span class="font-mono text-blue-700">{{ layoutStore.enhancement.brightness > 0 ? `+${layoutStore.enhancement.brightness}` : layoutStore.enhancement.brightness }}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="-30"
+                  max="30"
+                  step="5"
+                  v-model.number="layoutStore.enhancement.brightness"
+                  class="w-full accent-blue-600"
+                />
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex justify-between text-xs font-semibold text-slate-700">
+                  <span>Image Contrast</span>
+                  <span class="font-mono text-blue-700">{{ layoutStore.enhancement.contrast > 0 ? `+${layoutStore.enhancement.contrast}` : layoutStore.enhancement.contrast }}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="-30"
+                  max="30"
+                  step="5"
+                  v-model.number="layoutStore.enhancement.contrast"
+                  class="w-full accent-blue-600"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -383,32 +663,9 @@
           </div>
         </div>
 
-        <!-- Presets Selection -->
-        <div class="rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200">
-          <h3 class="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">Photo Presets</h3>
-          <div class="grid grid-cols-2 gap-2 sm:gap-2.5">
-            <button
-              v-for="preset in presets"
-              :key="preset.id"
-              type="button"
-              @click="selectPreset(preset.id)"
-              :class="[
-                layoutStore.activePreset === preset.id
-                  ? 'border-blue-600 bg-blue-50/60 text-blue-900 ring-2 ring-blue-600'
-                  : 'border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50',
-                'flex flex-col items-start rounded-2xl border p-2.5 sm:p-3 text-left transition'
-              ]"
-            >
-              <span class="text-xs font-bold">{{ preset.title }}</span>
-              <span class="text-[11px] font-medium text-blue-700">{{ preset.badge }}</span>
-              <span class="text-[10px] text-slate-400">{{ preset.desc }}</span>
-            </button>
-          </div>
-        </div>
-
         <!-- Studio Options -->
         <div class="rounded-3xl bg-white p-4 sm:p-5 shadow-sm ring-1 ring-slate-200 space-y-3.5">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Studio Options</h3>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Cutting & Spacing Options</h3>
 
           <label class="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" v-model="layoutStore.showCutLines" class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
@@ -430,7 +687,7 @@
 
       <!-- Right Canvas Container (7 cols) -->
       <div class="flex flex-col items-center justify-center rounded-3xl bg-slate-50 p-4 sm:p-6 ring-1 ring-slate-200/80 lg:col-span-7 xl:col-span-7 overflow-hidden min-h-[480px]">
-        <div class="mb-3 flex items-center justify-between w-full max-w-[420px] px-1 text-xs text-slate-500 font-medium">
+        <div class="mb-3 flex items-center justify-between w-full max-w-[440px] px-1 text-xs text-slate-500 font-medium">
           <span>Interactive Sheet Preview ({{ layoutStore.paperSize }})</span>
           <span class="text-[11px] text-blue-600 font-bold">Touch or Drag to Pan</span>
         </div>
@@ -467,7 +724,7 @@
               height: `${slot.h}%`,
               padding: layoutStore.zeroGap ? '0px' : '2px',
             }"
-            class="box-border flex items-center justify-center overflow-hidden"
+            class="box-border flex items-center justify-center overflow-hidden group"
           >
             <div
               :class="[
@@ -475,16 +732,17 @@
                 'relative h-full w-full overflow-hidden bg-slate-100 flex items-center justify-center'
               ]"
             >
-              <!-- Photo Image with Interactive Zoom, Pan & Rotation -->
+              <!-- Photo Image with Interactive Zoom, Pan, Rotation & Live CSS Filters -->
               <div
                 v-if="layoutStore.photoUrl"
                 class="h-full w-full flex items-center justify-center overflow-hidden"
               >
                 <img
-                  :src="layoutStore.photoUrl"
+                  :src="getSlotPhotoSrc(slot.photoIndex)"
                   :style="{
                     transform: `translate(${layoutStore.panOffset.x}%, ${layoutStore.panOffset.y}%) scale(${layoutStore.zoomScale}) rotate(${layoutStore.rotation}deg) ${layoutStore.mirrorFlip ? 'scaleX(-1)' : ''}`,
                     transformOrigin: 'center center',
+                    filter: layoutStore.canvasCssFilter,
                     transition: isDragging ? 'none' : 'transform 0.15s ease-out',
                   }"
                   class="max-h-full max-w-full object-contain pointer-events-none select-none"
@@ -496,12 +754,33 @@
               <span v-else class="text-[11px] font-bold text-slate-400">
                 {{ slot.label }}
               </span>
+
+              <!-- Live Official ID Nameplate SVG / Overlay -->
+              <div
+                v-if="layoutStore.nameplate.enabled || slot.nameplate?.enabled"
+                class="absolute bottom-0 inset-x-0 bg-white border-t border-slate-900 px-1 py-0.5 flex flex-col items-center justify-center text-center shadow-sm pointer-events-none"
+                :style="{
+                  height: layoutStore.nameplate.subtext ? '24%' : '20%',
+                }"
+              >
+                <!-- Optional Signature rule line -->
+                <div class="w-full border-t border-dashed border-slate-400 mb-0.5"></div>
+                <span v-if="layoutStore.nameplate.name.trim().length > 0" class="font-black text-slate-950 uppercase leading-none tracking-tight text-[9px] truncate max-w-full">
+                  {{ layoutStore.nameplate.name }}
+                </span>
+                <span v-else class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">
+                  NAME & SIGNATURE (CSC)
+                </span>
+                <span v-if="layoutStore.nameplate.subtext" class="text-[7px] font-bold text-slate-600 uppercase leading-none tracking-tighter truncate max-w-full mt-0.5">
+                  {{ layoutStore.nameplate.subtext }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Big Mother-Centric Price Counter Card -->
-        <div class="rounded-3xl bg-slate-900 p-6 text-white shadow-xl space-y-4">
+        <div class="rounded-3xl bg-slate-900 p-6 text-white shadow-xl space-y-4 w-full max-w-[440px] mt-4">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Photo Print Amount Due</span>
             <span class="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400">
@@ -537,7 +816,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useLayoutStore, PresetType } from '../stores/layoutStore';
+import { useLayoutStore, PresetType, FilterPreset } from '../stores/layoutStore';
 import { useJobStore } from '../stores/jobStore';
 
 const route = useRoute();
@@ -545,59 +824,64 @@ const router = useRouter();
 const layoutStore = useLayoutStore();
 const jobStore = useJobStore();
 
+const activeStudioTab = ref<'PRESETS' | 'AUTO_TILE' | 'NAMEPLATE' | 'TOUCH_UP'>('PRESETS');
 const photoInput = ref<HTMLInputElement | null>(null);
 const isDispatching = ref(false);
 const errorMessage = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const currentJobId = ref<string | null>(null);
 
-const presets: Array<{ id: PresetType; title: string; badge: string; desc: string }> = [
+const standardPresets: Array<{ id: PresetType; title: string; badge: string; desc: string }> = [
   { id: 'FULL_PAGE', title: 'FULL PAGE PHOTO', badge: '1x Full Sheet', desc: 'Standard Photo Print' },
   { id: 'GRID_2X2', title: '2x2 QUADRANTS', badge: '4x Quadrants', desc: '4 Equal Photos' },
   { id: 'GRID_2X3', title: '2x3 WALLET PRINTS', badge: '6x Wallet Photos', desc: '6 Photos Total' },
   { id: 'SET_1', title: 'SET 1 (STANDARD)', badge: '4x 2x2" + 8x 1x1"', desc: '12 Photos Total' },
   { id: 'SET_2', title: 'SET 2 (PRC / VISA)', badge: '6x 2x2"', desc: '6 Photos Total' },
   { id: 'SET_3', title: 'SET 3 (COMBO)', badge: '6x 1.5x1.5" + 4x 1x1"', desc: '10 Photos Total' },
-  { id: 'SET_4', title: 'SET 4 (PASSPORT)', badge: '6x 35x45 mm', desc: 'Official Spec' },
+  { id: 'SET_4', title: 'SET 4 (PASSPORT)', badge: '6x 35x45 mm', desc: 'Standard Passport' },
+  { id: 'CSC_PASSPORT', title: 'CSC PASSPORT (4 PCS)', badge: '4x 35x45mm + Nametag', desc: 'Civil Service Spec' },
   { id: 'POLAROID', title: 'POLAROID MINI', badge: '4x 2x3"', desc: 'Mini Frame Cards' },
+];
+
+const filterOptions: Array<{ id: FilterPreset; title: string; desc: string }> = [
+  { id: 'ORIGINAL', title: 'Original', desc: 'No Filter' },
+  { id: 'BRIGHTEN', title: 'Crisp Brighten', desc: '+15% Exposure' },
+  { id: 'BW', title: 'B&W ID Mode', desc: 'Pure Grayscale' },
+  { id: 'CONTRAST', title: 'High Contrast', desc: '+20% Depth' },
+  { id: 'VIVID', title: 'Vivid Glossy', desc: '+30% Color Pop' },
 ];
 
 const photoPresetPrice = computed(() => {
   const p = layoutStore.activePreset;
   const paper = layoutStore.paperSize;
-  if (p === 'FULL_PAGE') {
+  if (p === 'FULL_PAGE' || p === 'TILE_1') {
     return (paper === '4R' || paper === '5R') ? 20.00 : 25.00;
   }
   if (p === 'SET_1' || p === 'SET_2' || p === 'SET_3' || p === 'SET_4') {
     return 40.00;
   }
-  if (p === 'POLAROID' || p === 'GRID_2X2' || p === 'GRID_2X3') {
-    return 30.00;
+  if (p === 'POLAROID' || p === 'GRID_2X2' || p === 'GRID_2X3' || p.startsWith('TILE_')) {
+    return (paper === '4R' || paper === '5R') ? 30.00 : 35.00;
   }
-  return 20.00;
+  return 25.00;
 });
 
 const activePresetTitle = computed(() => {
-  const found = presets.find(p => p.id === layoutStore.activePreset);
-  return found ? found.title : 'Photo Print';
+  if (layoutStore.layoutMode === 'AUTO_TILE' || layoutStore.activePreset.startsWith('TILE_')) {
+    return `${layoutStore.tileCount} Photos Tiled on ${layoutStore.paperSize}`;
+  }
+  const found = standardPresets.find(p => p.id === layoutStore.activePreset);
+  return found ? found.title : 'Custom Photo Layout';
 });
 
 const orderPhotos = ref<any[]>([]);
 const selectedPhotoIndex = ref(0);
 
-function switchSelectedPhoto(index: number) {
-  if (index >= 0 && index < orderPhotos.value.length) {
-    selectedPhotoIndex.value = index;
-    const photo = orderPhotos.value[index];
-    layoutStore.photoUrl = `/api/operator/files/${photo.id}`;
-    layoutStore.resetTransform();
-    const img = new Image();
-    img.onload = () => {
-      layoutStore.photoDimensions = { width: img.naturalWidth, height: img.naturalHeight };
-      layoutStore.autoOrient(img.naturalWidth, img.naturalHeight);
-    };
-    img.src = layoutStore.photoUrl;
+function getSlotPhotoSrc(photoIdx?: number) {
+  if (photoIdx !== undefined && orderPhotos.value.length > photoIdx) {
+    return `/api/operator/files/${orderPhotos.value[photoIdx].id}`;
   }
+  return layoutStore.photoUrl || '';
 }
 
 onMounted(async () => {
@@ -631,6 +915,7 @@ const activePresetSlots = computed(() => {
   return layoutStore.boxes.map((box) => ({
     id: box.id,
     label: box.label,
+    photoIndex: box.photoIndex,
     x: (box.xMm / layoutStore.sheetWidthMm) * 100,
     y: (box.yMm / layoutStore.sheetHeightMm) * 100,
     w: (box.widthMm / layoutStore.sheetWidthMm) * 100,
@@ -651,7 +936,6 @@ async function onPhotoSelected(event: Event) {
     layoutStore.photoUrl = URL.createObjectURL(file);
     layoutStore.resetTransform();
 
-    // Measure natural dimensions for DPI calculation
     const img = new Image();
     img.onload = () => {
       layoutStore.photoDimensions = { width: img.naturalWidth, height: img.naturalHeight };
@@ -682,6 +966,7 @@ async function onPhotoSelected(event: Event) {
 
 function selectPreset(presetId: PresetType) {
   layoutStore.activePreset = presetId;
+  layoutStore.layoutMode = 'PRESET';
 }
 
 // Interactive Mouse/Touch Pan Dragging on the Canvas
@@ -752,12 +1037,17 @@ async function exportPdf() {
             showCutLines: layoutStore.showCutLines,
             zeroGap: layoutStore.zeroGap,
             mirrorFlip: layoutStore.mirrorFlip,
+            tileCount: layoutStore.tileCount,
+            customGrid: { cols: layoutStore.customCols, rows: layoutStore.customRows },
+            tileStrategy: layoutStore.tileStrategy,
             cropTransform: {
               scale: layoutStore.zoomScale,
               offsetX: layoutStore.panOffset.x,
               offsetY: layoutStore.panOffset.y,
               rotation: layoutStore.rotation,
             },
+            enhancement: layoutStore.enhancement,
+            nameplateConfig: layoutStore.nameplate.enabled ? layoutStore.nameplate : undefined,
           },
         },
       }),
@@ -804,12 +1094,17 @@ async function dispatchPrint() {
             showCutLines: layoutStore.showCutLines,
             zeroGap: layoutStore.zeroGap,
             mirrorFlip: layoutStore.mirrorFlip,
+            tileCount: layoutStore.tileCount,
+            customGrid: { cols: layoutStore.customCols, rows: layoutStore.customRows },
+            tileStrategy: layoutStore.tileStrategy,
             cropTransform: {
               scale: layoutStore.zoomScale,
               offsetX: layoutStore.panOffset.x,
               offsetY: layoutStore.panOffset.y,
               rotation: layoutStore.rotation,
             },
+            enhancement: layoutStore.enhancement,
+            nameplateConfig: layoutStore.nameplate.enabled ? layoutStore.nameplate : undefined,
           },
         },
       }),

@@ -123,11 +123,19 @@ The **Layout Studio** is the most visually rich tool in HomePrint OS, replicatin
    - Contains $6\times (2\times 2\text{ in})$ ID photos with white backgrounds.
 3. **Set 3 (Combo Package)**:
    - Contains $6\times (1.5\times 1.5\text{ in})$ and $4\times (1\times 1\text{ in})$ photos.
-4. **Set 4 (International / Philippine Passport Specification)**:
+4. **Set 4 (Standard Passport Specification)**:
    - Contains $6\times (35\times 45\text{ mm})$ photos with official passport proportions.
-5. **Polaroid Mini Mode**:
+5. **CSC Passport Package (Official Philippine Civil Service Spec)**:
+   - Contains $4\times (35\times 45\text{ mm})$ passport photos centered in a $2\times 2$ grid on a 4R sheet.
+   - Embeds a solid white nametag box docked at the bottom ($9\text{mm}$ height, providing exact $0.3\text{cm}-0.5\text{cm}$ clearance below the chin).
+   - Complies strictly with CSC requirements with a subtle handwriting guideline for applicant signature and handwritten full name, plus support for pre-printed uppercase text.
+6. **Polaroid Mini Mode**:
    - Arranges multiple $2\times 3\text{ in}$ Polaroid-style cards with white frames and optional bottom text caption/date stamp.
-6. **Free Layout Mode**:
+7. **Smart N-Up Auto-Tiling & Packing Engine**:
+   - Allows instant tiling of photos (1 to 24 copies per sheet) across 4R, 5R, A4, Letter, Long, and Legal formats.
+   - **5-in-a-Page Uniform Grid**: Arranges 5 photos into 3 rows (Row 1: 2 photos, Row 2: 2 photos, Row 3: 1 photo centered). All 5 photos share **identical dimensions and aspect ratios** with zero stretching.
+   - Supports 2-row ($3+2$) and Hero-Grid ($1\text{ Hero} + 4\text{ Grid}$) tiling strategies.
+8. **Free Layout Mode**:
    - Allows operator to place multiple different customer photos freely on 4R or A4 canvas with snap-to-grid alignment.
 
 ### 3.2 Visual Studio Controls
@@ -135,10 +143,19 @@ The **Layout Studio** is the most visually rich tool in HomePrint OS, replicatin
 * **Scissor Cut Lines Toggle**: Renders thin $0.5\text{pt}$ dashed grey cutting guidelines around each photo.
 * **Zero-Gap Mode Toggle**: Collapses all spacing between photos so the operator can slice them with a guillotine paper cutter in single continuous cuts.
 * **Sublimation Mirror Flip**: 1-click horizontal reflection for heat transfer printing (mugs, t-shirts, caps).
+* **Official ID Nameplate Toggle**: Instant white bar overlay with automated WinAnsi uppercase sanitization and signature lines.
+* **1-Tap Photo Touch-Up Filters**: Instant non-destructive filters (`Crisp Brighten`, `High Contrast`, `B&W ID Mode`, `Vivid Glossy`).
 * **DPI Quality Traffic Light**:
   - **Crisp** ($\ge 250\text{ DPI}$): Ready for official IDs.
   - **WhatsApp Compressed** ($150–250\text{ DPI}$): Soft warning.
   - **Too Blurry** ($<150\text{ DPI}$): Prompt asking for original photo.
+
+---
+
+### 3.3 Hardware Ink Telemetry & Printer Deduplication
+* **Native HP Embedded Web Server (EWS) XML Telemetry**: Queries `http://<ip>/DevMgmt/ConsumableConfigDyn.xml` via Node.js HTTP GET, returning exact Cyan, Magenta, Yellow, and Black tank percentages in $<150\text{ms}$ with zero reliance on host CLI tools or SNMP.
+* **IP-Based Canonical Deduplication**: Merges duplicate network printer aliases (`HP_Smart_Tank_192_168_1_60`, `HP_Smart_Tank_670`, `HP Smart Tank 670 (192.168.1.60)`) into a single verified online printer card.
+* **Document Subset Print Safety**: Bypasses double page-range filtering when printing single pages from multi-page PDFs, ensuring multiple requested copies spool cleanly to physical hardware.
 
 ---
 

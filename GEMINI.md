@@ -26,6 +26,7 @@
 
 6. **Typography Sanitization & SQL Join Standards**:
    - Sanitize all text drawn onto PDFs with `sanitizeWinAnsi` to decompose ligatures (`ﬃ`, `ﬀ`, `ﬁ`, `ﬂ`), curly quotes, and currency symbols (`₱`) before PDF generation.
+   - When ID nameplates (e.g. Civil Service Commission 2x2 with applicant name) are enabled, the vector engine must render a solid white bounding box docked at the bottom ~20% of the slot, auto-scale font metrics to prevent text clipping, and pass all strings through `sanitizeWinAnsi`.
    - Always qualify table prefixes in SQL joins (`job_orders.created_at`, `j.created_at`) to prevent ambiguous column errors under dynamic filters.
 
 7. **Academic Pixel & Pigment Color Classification Standard**:
@@ -37,6 +38,7 @@
 8. **Multi-File Batch Collation & Dynamic Orientation Standards**:
    - Ingest multi-image and multi-document uploads into a single collated multi-page print job order with unified per-page pricing and 1-click batch hardware spooling.
    - Scale full-page photo prints dynamically without arbitrary 1.0 downscaling caps across paper sizes (4R, 5R, A4, Letter, Long, Legal) and Portrait $\leftrightarrow$ Landscape orientations.
+   - Layout Studio must support automated N-up repeating and packing (1 to 24 copies per sheet, including asymmetric configurations like 5-in-a-page) with dynamic coordinate math across all paper formats (4R, 5R, A4, Letter, Long, Legal). Operators must never be forced to use external software (e.g. MS Word/Photoshop) to tile photos or documents.
 
 9. **Core Project Scaffolding & Context Invariants**:
    - Maintain strict synchronicity between `implementation_plan.md`, `walkthrough.md`, and system architecture documentation in `docs/`.

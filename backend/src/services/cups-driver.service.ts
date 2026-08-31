@@ -107,8 +107,35 @@ export class CupsDriverService {
       try {
         // Direct Windows Print Spooler dispatch via native pdf-to-printer
         const ptp = await import('pdf-to-printer');
+        let targetWinPrinter = printer;
+
+        try {
+          const winPrinters = await ptp.getPrinters();
+          // 1. Exact match
+          const exact = winPrinters.find(p => p.name === printer || p.deviceId === printer);
+          if (exact) {
+            targetWinPrinter = exact.name;
+          } else {
+            // 2. Fuzzy match by hardware series (e.g. "HP Smart Tank 670" -> "HP Smart Tank 660-670 series [28C379]")
+            const cleanedSearch = printer.toLowerCase();
+            const smartTankMatch = winPrinters.find(p => {
+              const pLower = p.name.toLowerCase();
+              return pLower.includes('smart tank') || (cleanedSearch.includes('canon') && pLower.includes('canon')) || (cleanedSearch.includes('epson') && pLower.includes('epson'));
+            });
+            if (smartTankMatch) {
+              targetWinPrinter = smartTankMatch.name;
+            } else if (winPrinters.length > 0) {
+              // 3. Fall back to non-virtual default
+              const physical = winPrinters.find(p => !p.name.toLowerCase().includes('pdf') && !p.name.toLowerCase().includes('xps') && !p.name.toLowerCase().includes('onenote'));
+              if (physical) {
+                targetWinPrinter = physical.name;
+              }
+            }
+          }
+        } catch {}
+
         const ptpOptions: any = {
-          printer,
+          printer: targetWinPrinter,
           copies,
         };
         if (options.paperSize === '4R') {
@@ -121,7 +148,7 @@ export class CupsDriverService {
 
         return {
           cupsJobId: `win_${Date.now()}`,
-          message: `Dispatched directly to "${printer}" via Windows Hardware Spooler`,
+          message: `Dispatched directly to "${targetWinPrinter}" via Windows Hardware Spooler`,
         };
       } catch (err: any) {
         throw new Error(`Windows hardware spool error for "${printer}": ${err.message}`);

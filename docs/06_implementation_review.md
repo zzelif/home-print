@@ -26,8 +26,11 @@ Following the stateful graph engine integration, ITU-R BT.601 color classificati
 │ 8. Multi-File Batch Collation         │ Completed  │ 100% (Collated Queue)  │
 │ 9. Route Isolation & PIN Security     │ Completed  │ 100% (Session-Locked)  │
 │ 10. Frontend UI Views (Vue 3 / Pinia) │ Completed  │ 100% (Production-Ready)│
-│ 11. Automated Vitest Test Suites      │ Completed  │ 100% (17/17 Suites, 65/65 Pass)│
+│ 11. Automated Vitest Test Suites      │ Completed  │ 100% (22/22 Suites, 110/110 Pass)│
 │ 12. Auto-Purge & Privacy Lifecycle    │ Completed  │ 100% (1-Hr Grace Gated)│
+│ 13. Native HP EWS XML Ink Telemetry   │ Completed  │ 100% (Hardware Verified)│
+│ 14. Philippine CSC Passport Standard  │ Completed  │ 100% (Official Spec)   │
+│ 15. Dynamic 3-Row N-Up Auto-Tiling    │ Completed  │ 100% (Uniform Math)    │
 └───────────────────────────────────────┴────────────┴────────────────────────┘
 ```
 

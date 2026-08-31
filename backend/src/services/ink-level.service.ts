@@ -1,5 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import http from 'http';
 import { getDatabase } from '../db/database';
 
 const execAsync = promisify(exec);
@@ -59,6 +60,17 @@ export class InkLevelService {
 
     // Attempt live reads in order of reliability
     if (ip) {
+      const ewsLevels = await this.readViaHpEws(ip);
+      if (ewsLevels) {
+        const result: InkLevels = {
+          ...ewsLevels,
+          printerName: resolvedName,
+          printerIp: ip,
+        };
+        await this.cacheInkLevels(cacheKey, result);
+        return result;
+      }
+
       const hplipLevels = await this.readViaHplip(ip);
       if (hplipLevels) {
         const result: InkLevels = {
@@ -232,6 +244,117 @@ export class InkLevelService {
   // -------------------------------------------------------------------------
   // Private helpers
   // -------------------------------------------------------------------------
+
+  /**
+   * Directly queries the HP Embedded Web Server (EWS) XML diagnostic tree over HTTP.
+   * This is fast (100-300ms), cross-platform (works on Windows, Linux, Pi), and provides
+   * authentic hardware sensor ink percentages (Cyan, Magenta, Yellow, Black).
+   */
+  private async readViaHpEws(ip: string): Promise<InkLevels | null> {
+    const fetchXml = (urlPath: string): Promise<string | null> => {
+      return new Promise((resolve) => {
+        const req = http.get(
+          `http://${ip}${urlPath}`,
+          { timeout: 3000 },
+          (res) => {
+            if (res.statusCode !== 200) {
+              res.resume();
+              return resolve(null);
+            }
+            let data = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk) => (data += chunk));
+            res.on('end', () => resolve(data));
+          }
+        );
+        req.on('timeout', () => {
+          req.destroy();
+          resolve(null);
+        });
+        req.on('error', () => resolve(null));
+      });
+    };
+
+    // 1. Check ConsumableConfigDyn.xml (contains exact percentage for each tank)
+    try {
+      const consumableXml = await fetchXml('/DevMgmt/ConsumableConfigDyn.xml');
+      if (consumableXml) {
+        const levels = this.parseHpConsumableXml(consumableXml);
+        if (levels) {
+          return {
+            ...levels,
+            source: 'ipp',
+            readAt: new Date().toISOString(),
+          };
+        }
+      }
+    } catch {}
+
+    // 2. Check ProductUsageDyn.xml
+    try {
+      const usageXml = await fetchXml('/DevMgmt/ProductUsageDyn.xml');
+      if (usageXml) {
+        const levels = this.parseHpConsumableXml(usageXml);
+        if (levels) {
+          return {
+            ...levels,
+            source: 'ipp',
+            readAt: new Date().toISOString(),
+          };
+        }
+      }
+    } catch {}
+
+    return null;
+  }
+
+  public parseHpConsumableXml(xml: string): Omit<InkLevels, 'source' | 'readAt'> | null {
+    const result: { black: number; cyan: number; magenta: number; yellow: number } = {
+      black: -1,
+      cyan: -1,
+      magenta: -1,
+      yellow: -1,
+    };
+    let foundCount = 0;
+
+    // Look for <ccdyn:ConsumableInfo> or <pudyn:Consumable> blocks
+    const infoBlocks = xml.split(/<\/(?:[a-zA-Z0-9]+:)?Consumable(?:Info)?>/i);
+    for (const block of infoBlocks) {
+      const isTank = /ConsumableTypeEnum>(?:inkTank|inkCartridge)<\//i.test(block) || /MarkerColor/i.test(block) || /ConsumableLabelCode/i.test(block);
+      if (!isTank) continue;
+
+      const labelMatch =
+        block.match(/ConsumableLabelCode>([A-Za-z]+)<\//i) ||
+        block.match(/MarkerColor>([A-Za-z]+)<\//i);
+      const levelMatch =
+        block.match(/ConsumablePercentageLevelRemaining>(\d+)<\//i) ||
+        block.match(/ConsumableRawPercentageLevelRemaining>(\d+)<\//i);
+
+      if (labelMatch && levelMatch) {
+        const code = labelMatch[1].trim().toUpperCase();
+        const level = parseInt(levelMatch[1], 10);
+        if (code === 'K' || code === 'BLACK') {
+          // If we already had printhead (e.g. 20%) and find full inkTank (100%), prefer the tank percentage
+          if (result.black === -1 || /inkTank/i.test(block)) {
+            result.black = Math.max(0, Math.min(100, level));
+            foundCount++;
+          }
+        } else if (code === 'C' || code === 'CYAN') {
+          result.cyan = Math.max(0, Math.min(100, level));
+          foundCount++;
+        } else if (code === 'M' || code === 'MAGENTA') {
+          result.magenta = Math.max(0, Math.min(100, level));
+          foundCount++;
+        } else if (code === 'Y' || code === 'YELLOW') {
+          result.yellow = Math.max(0, Math.min(100, level));
+          foundCount++;
+        }
+      }
+    }
+
+    if (foundCount === 0) return null;
+    return result;
+  }
 
   private async readViaHplip(ip: string): Promise<InkLevels | null> {
     const commands = [
